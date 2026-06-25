@@ -1,0 +1,8 @@
+{
+  "candidate_id": "demo-candidate-001",
+  "apk_id": "demo-apk",
+  "runtime_family": "react_native",
+  "evidence_type": "source_text_fallback",
+  "reachability_result": "predicted",
+  "confidence_score": 0.62
+}
