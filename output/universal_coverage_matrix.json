@@ -1,0 +1,155 @@
+{
+  "model": "universal_coverage_matrix_v1",
+  "summary": {
+    "targets": 5,
+    "quality_distribution": {
+      "raw_signals_only": 0,
+      "weak_capabilities": 0,
+      "strong_semantic_objects": 4,
+      "causal_evidence_stories_ready_for_reachability": 1
+    },
+    "ready_for_reachability": [
+      "output/mashop_lab"
+    ]
+  },
+  "rows": [
+    {
+      "target": "output/base_449df7fd46",
+      "artifacts_total": 4157,
+      "builtin_channels": 0,
+      "pigeon_rpc": 0,
+      "plugin_registrations": 0,
+      "native_capabilities": 1174,
+      "semantic_objects": 0,
+      "kg_nodes": 1196,
+      "kg_edges": 1351,
+      "avg_node_confidence": 0.178,
+      "avg_edge_confidence": 0.3809,
+      "evidence_v2_stories": 120,
+      "evidence_v2_high": 0,
+      "evidence_v2_medium": 120,
+      "evidence_v2_low": 0,
+      "capability_families": [
+        "file_storage",
+        "webview_url"
+      ],
+      "source_kinds": [
+        "ActivityIntentRoute",
+        "WebViewDeepLinkRoute"
+      ],
+      "semantic_story_quality": "strong_semantic_objects",
+      "next_required_action": "improve native provider/method correlation"
+    },
+    {
+      "target": "output/vienna_lab",
+      "artifacts_total": 2004,
+      "builtin_channels": 0,
+      "pigeon_rpc": 0,
+      "plugin_registrations": 0,
+      "native_capabilities": 1742,
+      "semantic_objects": 0,
+      "kg_nodes": 1764,
+      "kg_edges": 1889,
+      "avg_node_confidence": 0.1801,
+      "avg_edge_confidence": 0.3773,
+      "evidence_v2_stories": 120,
+      "evidence_v2_high": 0,
+      "evidence_v2_medium": 120,
+      "evidence_v2_low": 0,
+      "capability_families": [
+        "file_storage",
+        "webview_url"
+      ],
+      "source_kinds": [
+        "ActivityIntentRoute",
+        "WebViewDeepLinkRoute"
+      ],
+      "semantic_story_quality": "strong_semantic_objects",
+      "next_required_action": "improve native provider/method correlation"
+    },
+    {
+      "target": "output/seek_lab",
+      "artifacts_total": 21448,
+      "builtin_channels": 0,
+      "pigeon_rpc": 0,
+      "plugin_registrations": 0,
+      "native_capabilities": 20421,
+      "semantic_objects": 0,
+      "kg_nodes": 20443,
+      "kg_edges": 21487,
+      "avg_node_confidence": 0.1719,
+      "avg_edge_confidence": 0.385,
+      "evidence_v2_stories": 120,
+      "evidence_v2_high": 0,
+      "evidence_v2_medium": 120,
+      "evidence_v2_low": 0,
+      "capability_families": [
+        "file_storage",
+        "webview_url"
+      ],
+      "source_kinds": [
+        "ActivityIntentRoute",
+        "WebViewDeepLinkRoute"
+      ],
+      "semantic_story_quality": "strong_semantic_objects",
+      "next_required_action": "improve native provider/method correlation"
+    },
+    {
+      "target": "output/linktree_lab",
+      "artifacts_total": 2364,
+      "builtin_channels": 0,
+      "pigeon_rpc": 0,
+      "plugin_registrations": 0,
+      "native_capabilities": 2148,
+      "semantic_objects": 0,
+      "kg_nodes": 2170,
+      "kg_edges": 2253,
+      "avg_node_confidence": 0.1802,
+      "avg_edge_confidence": 0.3828,
+      "evidence_v2_stories": 120,
+      "evidence_v2_high": 0,
+      "evidence_v2_medium": 120,
+      "evidence_v2_low": 0,
+      "capability_families": [
+        "file_storage",
+        "webview_url"
+      ],
+      "source_kinds": [
+        "ActivityIntentRoute",
+        "WebViewDeepLinkRoute"
+      ],
+      "semantic_story_quality": "strong_semantic_objects",
+      "next_required_action": "improve native provider/method correlation"
+    },
+    {
+      "target": "output/mashop_lab",
+      "artifacts_total": 133,
+      "builtin_channels": 17,
+      "pigeon_rpc": 11,
+      "plugin_registrations": 5,
+      "native_capabilities": 93,
+      "semantic_objects": 33,
+      "kg_nodes": 147,
+      "kg_edges": 135,
+      "avg_node_confidence": 0.4074,
+      "avg_edge_confidence": 0.4647,
+      "evidence_v2_stories": 106,
+      "evidence_v2_high": 33,
+      "evidence_v2_medium": 73,
+      "evidence_v2_low": 0,
+      "capability_families": [
+        "file_storage",
+        "media_camera",
+        "preferences",
+        "webview_url"
+      ],
+      "source_kinds": [
+        "ActivityIntentRoute",
+        "PigeonRPC",
+        "PluginRegistration"
+      ],
+      "semantic_story_quality": "causal_evidence_stories_ready_for_reachability",
+      "next_required_action": "run entrypoint/reachability correlation against top stories"
+    }
+  ]
+}
