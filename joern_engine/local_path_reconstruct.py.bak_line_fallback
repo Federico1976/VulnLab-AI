@@ -1,0 +1,345 @@
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+def sh(cmd, cwd=None):
+    p = subprocess.run(
+        cmd,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    return p.returncode, p.stdout, p.stderr
+
+
+def safe_scala_string(s):
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def extract_method_name(signature):
+    m = re.search(r"\s([A-Za-z0-9_$]+)\s*\(", signature or "")
+    return m.group(1) if m else ""
+
+
+def build_joern_script(cpg_path, class_name, method_name, sink_terms, source_file="", source_line=None):
+    class_name = safe_scala_string(class_name)
+    method_name = safe_scala_string(method_name)
+    source_file = safe_scala_string(source_file or "")
+    source_line = int(source_line or -1)
+
+    short_class = class_name.split(".")[-1].replace("$", ".")
+    short_class = safe_scala_string(short_class)
+
+    filename_tail = source_file
+    if "output/" in filename_tail:
+        filename_tail = filename_tail.split("output/", 1)[-1]
+    if "/code/" in filename_tail:
+        filename_tail = filename_tail.split("/code/", 1)[-1]
+    filename_base = filename_tail.split("/")[-1] if filename_tail else ""
+    filename_base = safe_scala_string(filename_base)
+
+    sink_terms_scala = ", ".join([f'"{safe_scala_string(x)}"' for x in sink_terms])
+
+    scala = f'''
+importCpg("{safe_scala_string(str(cpg_path))}")
+
+val className = "{class_name}"
+val shortClass = "{short_class}"
+val methodName = "{method_name}"
+val filenameBase = "{filename_base}"
+val sourceLine = {source_line}
+val sinkTerms = List({sink_terms_scala})
+
+def lineDistance(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Int = {{
+  if (sourceLine < 0 || m.lineNumber.isEmpty) 999999
+  else Math.abs(m.lineNumber.get - sourceLine)
+}}
+
+val allMethods = cpg.method.name(methodName).l
+
+val exactFullName = allMethods.filter(_.fullName.contains(className))
+
+val shortClassMatch = allMethods.filter(m =>
+  m.fullName.contains("." + shortClass + ".") ||
+  m.fullName.contains("$" + shortClass + ".") ||
+  m.filename.contains(shortClass + ".java")
+)
+
+val filenameBaseMatch = allMethods.filter(m =>
+  filenameBase.nonEmpty && m.filename.endsWith(filenameBase)
+)
+
+val filenameAndLineMatch = filenameBaseMatch.filter(m =>
+  sourceLine < 0 || lineDistance(m) <= 10
+)
+
+val candidates =
+  if (exactFullName.nonEmpty) exactFullName.map(m => (m, "exact_fullname"))
+  else if (filenameAndLineMatch.nonEmpty) filenameAndLineMatch.sortBy(lineDistance).map(m => (m, "filename_line"))
+  else if (shortClassMatch.nonEmpty) shortClassMatch.sortBy(lineDistance).map(m => (m, "short_class"))
+  else if (filenameBaseMatch.nonEmpty) filenameBaseMatch.sortBy(lineDistance).map(m => (m, "filename_base"))
+  else allMethods.take(5).map(m => (m, "method_name_only"))
+
+println("VULNLAB_METHOD_COUNT=" + candidates.size)
+
+candidates.take(3).zipWithIndex.foreach {{ case ((m, strategy), idx) =>
+  println("VULNLAB_METHOD_INDEX=" + idx)
+  println("VULNLAB_RESOLUTION_STRATEGY=" + strategy)
+  println("VULNLAB_METHOD_FULLNAME=" + m.fullName)
+  println("VULNLAB_METHOD_SIGNATURE=" + m.signature)
+  println("VULNLAB_METHOD_FILE=" + m.filename)
+  println("VULNLAB_METHOD_LINE=" + m.lineNumber.getOrElse(-1))
+
+  println("VULNLAB_PARAMETERS_BEGIN")
+  m.parameter.l.foreach {{ p =>
+    println("PARAM|" + p.name + "|" + p.typeFullName + "|" + p.code + "|" + p.lineNumber.getOrElse(-1))
+  }}
+  println("VULNLAB_PARAMETERS_END")
+
+  println("VULNLAB_CALLS_BEGIN")
+  m.call.l.foreach {{ c =>
+    val isSink = sinkTerms.exists(t => c.code.contains(t) || c.name.contains(t) || c.methodFullName.contains(t))
+    val args = c.argument.l.map(a => a.code.replace("\\n", " ")).mkString(" @@ARG@@ ")
+    println(
+      "CALL|" +
+      c.name + "|" +
+      c.methodFullName + "|" +
+      c.code.replace("\\n", " ") + "|" +
+      c.lineNumber.getOrElse(-1) + "|" +
+      isSink + "|" +
+      args
+    )
+  }}
+  println("VULNLAB_CALLS_END")
+}}
+'''
+    return scala
+
+def parse_output(stdout):
+    methods = []
+    current = None
+    mode = None
+
+    for raw in stdout.splitlines():
+        line = raw.strip()
+
+        if line.startswith("VULNLAB_METHOD_INDEX="):
+            if current:
+                methods.append(current)
+            current = {
+                "parameters": [],
+                "calls": [],
+            }
+            continue
+
+        if current is None:
+            continue
+
+        if line.startswith("VULNLAB_RESOLUTION_STRATEGY="):
+            current["resolution_strategy"] = line.split("=", 1)[1]
+        elif line.startswith("VULNLAB_METHOD_FULLNAME="):
+            current["full_name"] = line.split("=", 1)[1]
+        elif line.startswith("VULNLAB_METHOD_SIGNATURE="):
+            current["signature"] = line.split("=", 1)[1]
+        elif line.startswith("VULNLAB_METHOD_FILE="):
+            current["file"] = line.split("=", 1)[1]
+        elif line.startswith("VULNLAB_METHOD_LINE="):
+            current["line"] = line.split("=", 1)[1]
+        elif line == "VULNLAB_PARAMETERS_BEGIN":
+            mode = "params"
+        elif line == "VULNLAB_PARAMETERS_END":
+            mode = None
+        elif line == "VULNLAB_CALLS_BEGIN":
+            mode = "calls"
+        elif line == "VULNLAB_CALLS_END":
+            mode = None
+        elif mode == "params" and line.startswith("PARAM|"):
+            parts = line.split("|", 4)
+            if len(parts) == 5:
+                _, name, typ, code, lineno = parts
+                current["parameters"].append({
+                    "name": name,
+                    "type": typ,
+                    "code": code,
+                    "line": lineno,
+                })
+        elif mode == "calls" and line.startswith("CALL|"):
+            parts = line.split("|", 6)
+            if len(parts) == 7:
+                _, name, method_full_name, code, lineno, is_sink, args = parts
+                current["calls"].append({
+                    "name": name,
+                    "method_full_name": method_full_name,
+                    "code": code,
+                    "line": lineno,
+                    "is_sink": is_sink == "true",
+                    "arguments": args.split(" @@ARG@@ ") if args else [],
+                })
+
+    if current:
+        methods.append(current)
+
+    return methods
+
+
+def infer_local_edges(method):
+    params = method.get("parameters", [])
+    calls = method.get("calls", [])
+
+    param_names = [p["name"] for p in params if p.get("name") and p["name"] != "this"]
+
+    edges = []
+    source_calls = []
+
+    for c in calls:
+        code = c.get("code", "")
+
+        for p in param_names:
+            if re.search(rf"\b{re.escape(p)}\b", code):
+                edges.append({
+                    "type": "param_to_call",
+                    "source": p,
+                    "target_call": c.get("name"),
+                    "target_code": code,
+                    "line": c.get("line"),
+                })
+
+        if any(token in code for token in ["getString", "getBoolean", "getInt", "getDouble", "getArray", "getMap"]):
+            source_calls.append(c)
+
+    flow_candidates = []
+
+    for sink in [c for c in calls if c.get("is_sink")]:
+        sink_code = sink.get("code", "")
+        contributing_params = []
+        contributing_calls = []
+
+        for p in param_names:
+            if re.search(rf"\b{re.escape(p)}\b", sink_code):
+                contributing_params.append(p)
+
+        for src_call in source_calls:
+            if src_call.get("code") and src_call.get("code") in sink_code:
+                contributing_calls.append(src_call)
+
+        if contributing_params or contributing_calls:
+            flow_candidates.append({
+                "sink": sink,
+                "contributing_params": contributing_params,
+                "contributing_source_calls": contributing_calls,
+                "confidence": 0.85 if contributing_calls else 0.65,
+            })
+
+    return {
+        "parameter_names": param_names,
+        "edges": edges,
+        "source_calls": source_calls,
+        "sink_calls": [c for c in calls if c.get("is_sink")],
+        "flow_candidates": flow_candidates,
+    }
+
+
+def sink_terms_for_candidate(candidate):
+    terms = set()
+
+    for s in candidate.get("rn_enrichment", {}).get("sink_types", []):
+        if s == "webview":
+            terms.update(["loadUrl", "evaluateJavascript", "addJavascriptInterface"])
+        elif s == "intent":
+            terms.update(["putExtra", "setData", "setAction", "parseUri"])
+        elif s == "activity_launch":
+            terms.update(["startActivity", "startActivityForResult"])
+        elif s == "file":
+            terms.update(["File", "FileInputStream", "FileOutputStream", "openFileInput", "openFileOutput"])
+        elif s == "network":
+            terms.update(["HttpURLConnection", "OkHttpClient", "Retrofit", "openConnection"])
+        elif s == "content_resolver":
+            terms.update(["ContentResolver", "query", "insert", "update", "delete"])
+        elif s == "crypto":
+            terms.update(["Cipher", "MessageDigest", "Mac", "KeyStore"])
+
+    for line in candidate.get("execution_path", {}).get("sink_lines", []):
+        pat = line.get("pattern")
+        if pat:
+            terms.add(pat.replace("(", ""))
+
+    return sorted(terms) or ["putExtra", "loadUrl", "startActivity", "File"]
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: python3 -m joern_engine.local_path_reconstruct <cpg.bin> <candidate_queue_or_paths.json> <out.json>")
+        sys.exit(1)
+
+    cpg_path = Path(sys.argv[1])
+    input_path = Path(sys.argv[2])
+    out_path = Path(sys.argv[3])
+
+    candidates = json.loads(input_path.read_text(encoding="utf-8"))
+    results = []
+
+    workdir = out_path.parent / "joern_local_path_scripts"
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    for idx, candidate in enumerate(candidates, 1):
+        cls = candidate.get("class", "")
+        sig = candidate.get("signature", "")
+        method = candidate.get("rn_enrichment", {}).get("method_name") or extract_method_name(sig)
+        sink_terms = sink_terms_for_candidate(candidate)
+
+        script = build_joern_script(
+            cpg_path,
+            cls,
+            method,
+            sink_terms,
+            source_file=candidate.get("file", ""),
+            source_line=candidate.get("line"),
+        )
+        script_path = workdir / f"{idx:03d}_{method}.sc"
+        script_path.write_text(script, encoding="utf-8")
+
+        rc, stdout, stderr = sh(["joern", "--script", str(script_path)])
+
+        methods = parse_output(stdout)
+
+        joern_evidence = {
+            "candidate_rank": idx,
+            "class": cls,
+            "method": method,
+            "signature": sig,
+            "sink_terms": sink_terms,
+            "joern_returncode": rc,
+            "method_count": len(methods),
+            "methods": [],
+            "stderr_tail": stderr[-2000:],
+        }
+
+        for m in methods:
+            local = infer_local_edges(m)
+            m["local_path_reconstruction"] = local
+            joern_evidence["methods"].append(m)
+
+        candidate["joern_local_path"] = joern_evidence
+        results.append(candidate)
+
+        flow_count = sum(
+            len(m.get("local_path_reconstruction", {}).get("flow_candidates", []))
+            for m in joern_evidence["methods"]
+        )
+
+        print(
+            f"[{idx:03d}/{len(candidates)}] class={cls} method={method} "
+            f"methods={len(methods)} local_flows={flow_count}"
+        )
+
+    out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"[+] written {out_path}")
+
+
+if __name__ == "__main__":
+    main()

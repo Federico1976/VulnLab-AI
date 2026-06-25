@@ -1,0 +1,26 @@
+rules:
+  - id: apk-agent-hostnameverifier-accepts-all
+    languages: [java]
+    severity: ERROR
+    message: >
+      HostnameVerifier che ritorna sempre true, oppure uso di
+      ALLOW_ALL_HOSTNAME_VERIFIER. L'hostname del certificato server NON viene
+      verificato contro l'host effettivo contattato, permettendo un attacco MITM
+      anche con un certificato valido ma per un dominio diverso.
+    metadata:
+      category: security
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp_masvs: "MASVS-NETWORK"
+      references:
+        - https://mas.owasp.org/MASTG/0x05g-Testing-Network-Communication/
+    pattern-either:
+      - pattern: |
+          new HostnameVerifier() {
+            ...
+            public boolean verify(...) {
+              return true;
+            }
+            ...
+          }
+      - pattern: $X.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)
+      - pattern: $X.setDefaultHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)

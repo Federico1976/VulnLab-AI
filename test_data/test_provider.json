@@ -1,0 +1,12 @@
+{
+  "name": ".FileProvider",
+  "exported": true,
+  "permission": null,
+  "intent_filters": [],
+  "raw_attribs": {
+    "exported_declared_explicitly": true,
+    "grant_uri_permissions": "true",
+    "authorities": "com.example.testapp.fileprovider",
+    "permission": null
+  }
+}

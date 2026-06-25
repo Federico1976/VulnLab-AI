@@ -1,0 +1,42 @@
+import json
+import sys
+from pathlib import Path
+
+
+def key(x):
+    return (x.get("class"), x.get("signature"))
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: python3 -m joern_engine.merge_evidence_layers <base_evidence.json> <fallback_flow.json> <out.json>")
+        sys.exit(1)
+
+    base = json.loads(Path(sys.argv[1]).read_text())
+    fallback = json.loads(Path(sys.argv[2]).read_text())
+
+    fb = {key(x): x for x in fallback}
+
+    merged = []
+    for item in base:
+        k = key(item)
+        if k in fb:
+            item["source_text_fallback"] = fb[k].get("source_text_fallback")
+            item["flow_reconstruction"] = fb[k].get("flow_reconstruction")
+
+            if item.get("joern_evidence", {}).get("status") == "no_joern_evidence":
+                item["joern_evidence"]["status"] = "source_text_fallback"
+                item["joern_evidence"]["confidence"] = 0.7
+                item["joern_evidence"]["decision"] = (
+                    "Joern did not expose the expected method node, but source text fallback reconstructed local sensitive flows."
+                )
+
+        merged.append(item)
+
+    Path(sys.argv[3]).write_text(json.dumps(merged, indent=2, ensure_ascii=False))
+    print(f"[+] base={len(base)} fallback={len(fallback)} merged={len(merged)}")
+    print(f"[+] written {sys.argv[3]}")
+
+
+if __name__ == "__main__":
+    main()

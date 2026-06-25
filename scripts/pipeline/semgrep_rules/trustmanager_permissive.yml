@@ -1,0 +1,22 @@
+rules:
+  - id: apk-agent-trustmanager-accepts-all-certs
+    languages: [java]
+    severity: ERROR
+    message: >
+      Implementazione custom di X509TrustManager con checkServerTrusted vuoto
+      (no-op). L'app accetta QUALSIASI certificato server, incluso uno presentato
+      da un attaccante in un attacco MITM. Pattern di vulnerabilita mobile tra i
+      piu documentati e ricercati al mondo.
+    metadata:
+      category: security
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp_masvs: "MASVS-NETWORK"
+      references:
+        - https://mas.owasp.org/MASTG/0x05g-Testing-Network-Communication/
+    patterns:
+      - pattern: |
+          new X509TrustManager() {
+            ...
+            public void checkServerTrusted(...) { }
+            ...
+          }

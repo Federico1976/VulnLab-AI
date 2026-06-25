@@ -1,0 +1,67 @@
+{
+  "react_native": [
+    "libreactnativejni.so",
+    "libhermes.so",
+    "assets/index.android.bundle",
+    "com.facebook.react",
+    "ReactActivity",
+    "ReactApplication"
+  ],
+  "flutter": [
+    "libflutter.so",
+    "libapp.so",
+    "io.flutter",
+    "flutter_assets"
+  ],
+  "cordova": [
+    "cordova.js",
+    "org.apache.cordova",
+    "assets/www"
+  ],
+  "capacitor": [
+    "capacitor.config",
+    "com.getcapacitor",
+    "CapacitorActivity"
+  ],
+  "xamarin": [
+    "libmonodroid.so",
+    "assemblies/",
+    "mono.android"
+  ],
+  "unity": [
+    "libunity.so",
+    "com.unity3d.player.UnityPlayerActivity"
+  ],
+  "kotlin": [
+    "kotlin.Metadata",
+    "META-INF/*.kotlin_module",
+    "kotlinx_coroutines"
+  ],
+  "jetpack_compose": [
+    "androidx.compose",
+    "org.jetbrains.compose",
+    "ComposeView",
+    "AndroidContextProvider"
+  ],
+  "firebase": [
+    "com.google.firebase",
+    "FirebaseMessagingService",
+    "FirebaseAuth",
+    "FirebaseFirestore",
+    "firebase_crashlytics"
+  ],
+  "webview": [
+    "WebView",
+    "loadUrl",
+    "shouldOverrideUrlLoading",
+    "AwesomeWebView",
+    "awesomewebview"
+  ],
+  "debug_tooling": [
+    "chucker",
+    "Chucker",
+    "hyperion",
+    "Hyperion",
+    "timber"
+  ]
+}

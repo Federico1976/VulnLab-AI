@@ -1,0 +1,12 @@
+{
+  "name": ".BackgroundSyncService",
+  "exported": false,
+  "permission": null,
+  "intent_filters": [],
+  "raw_attribs": {
+    "exported_declared_explicitly": true,
+    "grant_uri_permissions": null,
+    "authorities": null,
+    "permission": null
+  }
+}

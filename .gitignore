@@ -1,21 +1,33 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
-.DS_Store
+env/
+
+# Local outputs / labs
+output/
+workspace/
+targets/
+candidate_queue/
+import_log.txt
+
+# Joern / CPG artifacts
+*.cpg
+*.bin.zip
+.sc.semanticcpg/
+.sc/
+
+# Logs
 *.log
 
-# heavy generated target files
-targets/
-*.apk
-*.aab
-*.xapk
-*.apks
-*.so
-*.dex
-
-# keep reports, not huge decompiled blobs
-output/*/code/
-output/*/decompiled/
-output/*/jadx/
-output/*/sources/
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+external_sources/Claude-BugHunter/

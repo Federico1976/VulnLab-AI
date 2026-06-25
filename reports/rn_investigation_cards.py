@@ -1,0 +1,177 @@
+import json
+import sys
+from pathlib import Path
+
+def md_escape(s):
+    return str(s).replace("|", "\\|")
+
+def clean_path(p):
+    if not p:
+        return ""
+    s = str(p)
+    marker = "output/"
+    first = s.find(marker)
+    if first == -1:
+        return s
+    second = s.find(marker, first + len(marker))
+    if second != -1:
+        return s[second:]
+    return s[first:]
+
+def build_card(f, idx):
+    ep = f.get("execution_path", {})
+    cq = f.get("candidate_queue", {})
+    rn = f.get("rn_enrichment", {})
+
+    lines = []
+    lines.append(f"# RN Candidate {idx}: {f.get('class')}")
+    lines.append("")
+    lines.append(f"- **Signature:** `{f.get('signature')}`")
+    lines.append(f"- **File:** `{clean_path(f.get('file'))}`")
+    lines.append(f"- **Line:** `{f.get('line')}`")
+    lines.append(f"- **Queue score:** `{cq.get('queue_score')}`")
+    lines.append(f"- **Path confidence:** `{ep.get('path_confidence')}`")
+    lines.append(f"- **Sink types:** `{', '.join(rn.get('sink_types', []))}`")
+    lines.append(f"- **Arguments:** `{', '.join(ep.get('source', {}).get('arguments', []))}`")
+    lines.append("")
+    lines.append("## Source")
+    lines.append("")
+    lines.append(f"`{ep.get('source', {}).get('type')}`")
+    lines.append("")
+    lines.append("## Sink lines")
+    lines.append("")
+    for s in ep.get("sink_lines", []):
+        lines.append(f"- L{s.get('line_in_method')}: `{s.get('code')}`")
+    lines.append("")
+    lines.append("## Source argument usage")
+    lines.append("")
+    for arg, hits in ep.get("source_argument_usage", {}).items():
+        lines.append(f"### `{arg}`")
+        for h in hits[:20]:
+            lines.append(f"- L{h.get('line_in_method')}: `{h.get('code')}`")
+        lines.append("")
+    je = f.get("joern_evidence", {})
+    if je:
+        lines.append("## Joern evidence")
+        lines.append("")
+        lines.append(f"- **Status:** `{je.get('status')}`")
+        lines.append(f"- **Confidence:** `{je.get('confidence')}`")
+        lines.append(f"- **Local flow count:** `{je.get('local_flow_count')}`")
+        lines.append("")
+        for flow in je.get("local_flows", [])[:10]:
+            sink = flow.get("sink", {})
+            lines.append(f"- Sink: `{sink.get('code')}`")
+            params = ", ".join(flow.get("contributing_params", []))
+            lines.append(f"  - Params: `{params}`")
+            for sc in flow.get("contributing_source_calls", [])[:5]:
+                lines.append(f"  - Source call: `{sc.get('code')}`")
+        lines.append("")
+        rbf = je.get("reachable_by_flows", {})
+        if rbf:
+            lines.append(f"- **reachableByFlows:** `{rbf.get('status')}`")
+            lines.append(f"- **RBF note:** {rbf.get('note')}")
+            lines.append("")
+
+    fr = f.get("flow_reconstruction")
+    if fr:
+        lines.append("## Flow reconstruction")
+        lines.append("")
+        lines.append(f"- **Sink count:** `{fr.get('sink_count')}`")
+        lines.append("")
+        for sink in fr.get("sinks", [])[:12]:
+            lines.append(f"- L{sink.get('line')}: `{sink.get('code')}`")
+            lines.append(f"  - Source params: `{', '.join(sink.get('source_params', []))}`")
+            lines.append(f"  - Source vars: `{', '.join(sink.get('source_vars', []))}`")
+            lines.append(f"  - Confidence: `{sink.get('confidence')}`")
+        lines.append("")
+
+    st = f.get("source_text_fallback")
+    if st:
+        lines.append("## Source text fallback")
+        lines.append("")
+        lines.append(f"- **Status:** `{st.get('status')}`")
+        lines.append(f"- **Method:** `{st.get('method')}`")
+        lines.append(f"- **Sensitive sink count:** `{st.get('sensitive_sink_count')}`")
+        lines.append(f"- **Decision:** {st.get('decision')}")
+        lines.append("")
+
+    ex = f.get("exploitability_reasoning")
+    if ex:
+        lines.append("## Exploitability reasoning")
+        lines.append("")
+        lines.append(f"- **Score:** `{ex.get('exploitability_score')}`")
+        lines.append(f"- **Rating:** `{ex.get('exploitability_rating')}`")
+        lines.append(f"- **Evidence status:** `{ex.get('evidence_status')}`")
+        lines.append(f"- **Sink types:** `{', '.join(ex.get('sink_types', []))}`")
+        lines.append(f"- **Candidate status:** `{ex.get('status')}`")
+        lines.append("")
+        ac = ex.get("attacker_control", {})
+        lines.append(f"- **Attacker control:** `{ac.get('level')}` — {ac.get('reason')}")
+        tb = ex.get("trust_boundary_crossing", {})
+        lines.append(f"- **Trust boundary crossing:** `{tb.get('crosses_boundary')}` — {tb.get('reason')}")
+        lines.append("")
+        lines.append("### Runtime preconditions")
+        lines.append("")
+        for pre in ex.get("runtime_preconditions", []):
+            lines.append(f"- {pre}")
+        lines.append("")
+        lines.append("### Blocking factors")
+        lines.append("")
+        for b in ex.get("blocking_factors", []):
+            lines.append(f"- {b}")
+        lines.append("")
+        lines.append("### Dynamic validation recipe")
+        lines.append("")
+        for step in ex.get("dynamic_validation_recipe", []):
+            lines.append(f"- {step}")
+        lines.append("")
+        lines.append(f"**Do not report yet:** {ex.get('do_not_report_yet_reason')}")
+        lines.append("")
+
+    lines.append("## Validation plan")
+    lines.append("")
+    lines.append("1. Confirm whether the React Native method is reachable from trusted-only JS or attacker-influenced JS.")
+    lines.append("2. Trace argument origin: deeplink, push, remote config, WebView JS, local app state, or authenticated user action.")
+    lines.append("3. Confirm whether source argument reaches sink without sanitization or allowlist.")
+    lines.append("4. If cross-component: correlate target Activity/Service/Provider with manifest exposure.")
+    lines.append("5. Build minimal dynamic test only after reachability is established.")
+    lines.append("")
+    lines.append("## Status")
+    lines.append("")
+    lines.append("`candidate_not_confirmed`")
+    lines.append("")
+    return "\n".join(lines)
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python3 -m reports.rn_investigation_cards <execution_paths.json> <out_dir>")
+        sys.exit(1)
+
+    data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    out_dir = Path(sys.argv[2])
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    index = []
+    for i, f in enumerate(data, 1):
+        safe_class = f.get("class", "unknown").replace(".", "_").replace("$", "_")
+        out = out_dir / f"{i:03d}_{safe_class}.md"
+        out.write_text(build_card(f, i), encoding="utf-8")
+        index.append({
+            "rank": i,
+            "class": f.get("class"),
+            "signature": f.get("signature"),
+            "queue_score": f.get("candidate_queue", {}).get("queue_score"),
+            "path_confidence": f.get("execution_path", {}).get("path_confidence"),
+            "card": str(out),
+        })
+
+    (out_dir / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+
+    print(f"[+] Cards written: {len(index)}")
+    print(f"[+] Output dir: {out_dir}")
+    print("[+] Top 10 cards:")
+    for item in index[:10]:
+        print(f"{item['rank']:02d}. score={item['queue_score']} conf={item['path_confidence']} {item['card']}")
+
+if __name__ == "__main__":
+    main()

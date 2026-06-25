@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""
+manifest_misconfig.py
+=======================
+Controlli diretti sul manifest, ispirati al pattern "14.6 Manifest misconfig
+findings" gia' presente nella nostra Knowledge Base. Zero costo computazionale,
+nessuna dipendenza da Joern/jadx - lavora solo sul manifest.json prodotto
+dall'Extractor.
+
+Uso:
+    python3 manifest_misconfig.py --manifest-file manifest.json --apktool-yml apktool.yml
+"""
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+
+SEVERITY_TABLE = {
+    "debuggable_true": "CRITICAL",
+    "allow_backup_no_whitelist": "MEDIUM",
+    "uses_cleartext_traffic": "MEDIUM",
+    "exported_without_permission": "MEDIUM",
+    "sensitive_deeplink_handler": "HIGH",
+    "webview_js_bridge": "HIGH",
+    "no_cert_pinning_signal": "LOW",
+}
+
+
+def check_exported_without_permission(manifest_data: dict) -> list:
+    """Componenti exported senza permission - segnale gia' presente nel
+    nostro Reasoning Agent, qui lo esplicitiamo come finding strutturato."""
+    findings = []
+    for comp_type, comp_list in manifest_data.get("components", {}).items():
+        for comp in comp_list:
+            if comp.get("exported") is True and not comp.get("permission"):
+                findings.append({
+                    "check": "exported_without_permission",
+                    "severity": SEVERITY_TABLE["exported_without_permission"],
+                    "component_type": comp_type,
+                    "component_name": comp.get("name"),
+                    "detail": "Componente exported senza android:permission dichiarato.",
+                })
+    return findings
+
+
+def check_sensitive_deeplink_handlers(manifest_data: dict) -> list:
+    """Activity con intent-filter BROWSABLE + scheme custom: deep link
+    handler potenzialmente sensibile (vedi pattern KB Mobile Deep Link)."""
+    findings = []
+    for comp_type, comp_list in manifest_data.get("components", {}).items():
+        for comp in comp_list:
+            for intent_filter in comp.get("intent_filters", []):
+                categories = intent_filter.get("categories", [])
+                data_entries = intent_filter.get("data", [])
+                if "android.intent.category.BROWSABLE" in categories and data_entries:
+                    schemes = [d.get("scheme") for d in data_entries if d.get("scheme")]
+                    findings.append({
+                        "check": "sensitive_deeplink_handler",
+                        "severity": SEVERITY_TABLE["sensitive_deeplink_handler"],
+                        "component_type": comp_type,
+                        "component_name": comp.get("name"),
+                        "detail": f"Deep link handler BROWSABLE con scheme: {schemes}",
+                        "poc_hint": _build_deeplink_poc(comp.get("name"), data_entries),
+                    })
+    return findings
+
+
+def _build_deeplink_poc(component_name: str, data_entries: list) -> str:
+    """Genera il comando adb pronto per testare manualmente il deep link.
+    Solo generazione di testo, nessuna esecuzione."""
+    for d in data_entries:
+        scheme = d.get("scheme", "scheme")
+        host = d.get("host", "host")
+        path = d.get("pathPrefix") or d.get("path") or ""
+        uri = f"{scheme}://{host}{path}"
+        return f'adb shell am start -a android.intent.action.VIEW -d "{uri}" <package_name>'
+    return "adb shell am start -a android.intent.action.VIEW -d \"<scheme>://<host>/<path>\" <package_name>"
+
+
+def check_metadata_flags(metadata_path: Path | None) -> list:
+    """Se disponibile apktool.yml, controlla debuggable/allowBackup/
+    cleartextTraffic. Questi flag spesso non sono nel manifest decodificato
+    in modo diretto se settati via merge di build variant; apktool.yml a
+    volte li espone meglio."""
+    findings = []
+    if metadata_path is None or not metadata_path.exists():
+        return findings
+
+    content = metadata_path.read_text(errors="ignore")
+
+    if re.search(r"debuggable:\s*true", content, re.IGNORECASE):
+        findings.append({
+            "check": "debuggable_true",
+            "severity": SEVERITY_TABLE["debuggable_true"],
+            "component_type": "application",
+            "component_name": None,
+            "detail": "android:debuggable=true rilevato. Consente attach debugger, "
+                      "estrazione dati a runtime, bypass di molte protezioni.",
+        })
+
+    return findings
+
+
+def check_permissions_signals(manifest_data: dict) -> list:
+    """Segnali utili dai permessi dichiarati, non strettamente misconfig
+    ma utili per il contesto (es. INTERNET + nessuna cleartext info disponibile)."""
+    findings = []
+    permissions = manifest_data.get("permissions", [])
+    dangerous_perms = {
+        "android.permission.READ_SMS": "Lettura SMS - target comune per furto OTP",
+        "android.permission.SYSTEM_ALERT_WINDOW": "Overlay - possibile tapjacking/overlay attack",
+        "android.permission.REQUEST_INSTALL_PACKAGES": "Installazione APK da app - supply chain risk",
+        "android.permission.WRITE_EXTERNAL_STORAGE": "Scrittura storage esterno - dati esposti ad altre app",
+    }
+    for perm in permissions:
+        if perm in dangerous_perms:
+            findings.append({
+                "check": "sensitive_permission",
+                "severity": "INFO",
+                "component_type": "permission",
+                "component_name": perm,
+                "detail": dangerous_perms[perm],
+            })
+    return findings
+
+
+def run_all_checks(manifest_data: dict, metadata_path: Path | None = None) -> dict:
+    findings = []
+    findings.extend(check_exported_without_permission(manifest_data))
+    findings.extend(check_sensitive_deeplink_handlers(manifest_data))
+    findings.extend(check_metadata_flags(metadata_path))
+    findings.extend(check_permissions_signals(manifest_data))
+
+    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    findings.sort(key=lambda f: severity_order.get(f["severity"], 99))
+
+    return {
+        "total_findings": len(findings),
+        "findings_by_severity": {
+            sev: sum(1 for f in findings if f["severity"] == sev)
+            for sev in severity_order
+        },
+        "findings": findings,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Manifest misconfig check")
+    parser.add_argument("--manifest-file", required=True, type=Path)
+    parser.add_argument("--apktool-yml", type=Path, default=None)
+    parser.add_argument("--output", type=Path, default=None)
+    args = parser.parse_args()
+
+    manifest_data = json.loads(args.manifest_file.read_text())
+    result = run_all_checks(manifest_data, args.apktool_yml)
+
+    print("=" * 70)
+    print("MANIFEST MISCONFIG CHECK")
+    print("=" * 70)
+    print(f"Totale finding: {result['total_findings']}")
+    for sev, count in result["findings_by_severity"].items():
+        if count > 0:
+            print(f"  {sev}: {count}")
+    print()
+
+    for f in result["findings"]:
+        print(f"[{f['severity']}] {f['check']} -- {f['component_type']}: {f.get('component_name')}")
+        print(f"    {f['detail']}")
+        if "poc_hint" in f:
+            print(f"    PoC: {f['poc_hint']}")
+        print()
+
+    if args.output:
+        args.output.write_text(json.dumps(result, indent=2))
+        print(f"[✓] Salvato in: {args.output}")
+
+
+if __name__ == "__main__":
+    main()

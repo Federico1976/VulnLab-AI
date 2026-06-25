@@ -1,0 +1,17 @@
+rules:
+  - id: apk-agent-biometric-no-cryptoobject
+    languages: [java]
+    severity: WARNING
+    message: >
+      BiometricPrompt.authenticate() chiamato senza CryptoObject. Il risultato
+      e usato solo come booleano (onAuthenticationSucceeded), senza che la
+      riuscita sia legata alla decifratura di una chiave reale in AndroidKeyStore.
+      Un attaccante con accesso a hook runtime/binario patchato puo forzare il
+      branch "success" senza presentare alcuna biometria reale.
+    metadata:
+      category: security
+      cwe: "CWE-287: Improper Authentication"
+      owasp_masvs: "MASVS-AUTH"
+      references:
+        - https://mas.owasp.org/MASTG/0x05f-Testing-Local-Authentication/
+    pattern: $PROMPT.authenticate($INFO)

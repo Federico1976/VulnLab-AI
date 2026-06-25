@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+"""
+joern_bridge.py
+=================
+Ponte Python -> Joern via stdin. Tre funzioni:
+
+1. query_joern() - trova metodi e sink pericolosi per un componente
+2. trace_dataflow() - verifica se un sink trovato e' REALMENTE raggiungibile
+   da una source esterna (getIntent/getExtras/...), non solo presente nel
+   metodo. Questo e' il passo che distingue un'ipotesi da una conferma.
+3. full_analysis() - combina 1 e 2: trova i sink, poi per ognuno verifica
+   il data flow reale, automaticamente.
+"""
+
+import json
+import re
+import subprocess
+
+
+SINK_PATTERN = (
+    "exec|loadUrl|loadData|addJavascriptInterface|rawQuery|execSQL|"
+    "FileInputStream|FileOutputStream|openFileOutput|forName|"
+    "DexClassLoader|sendBroadcast|getExternalStorage"
+)
+
+SOURCE_PATTERN = (
+    "getIntent|getExtras|getStringExtra|getIntExtra|getParcelableExtra|"
+    "getBooleanExtra|getLongExtra|getDoubleExtra|getByteArrayExtra|"
+    "getCharSequenceExtra|getSerializableExtra"
+)
+
+# MASVS-STORAGE #6 / MASVS-PRIVACY #2: source diversa da Intent.
+# Qui la source e' la LETTURA di un valore potenzialmente sensibile da
+# SharedPreferences. Il nome del metodo Joern cattura sia get*() di
+# lettura sia eventuali wrapper custom che spesso si chiamano getString/
+# getSecret/getToken nelle app reali. Filtriamo a valle sul nome della
+# CHIAVE passata come argomento (fatto in Python, non qui, perche'
+# Joern filtra sul nome del metodo/call, non sul valore di una stringa
+# letterale argomento con la stessa facilita').
+STORAGE_SOURCE_PATTERN = (
+    "getString|getInt|getLong|getBoolean|getFloat|getStringSet"
+)
+
+DELIM = "@@@FIELD@@@"
+
+
+def _run_joern(scala_lines: list, timeout: int = 240) -> str:
+    """Esegue una sequenza di comandi Scala via stdin e ritorna lo stdout grezzo."""
+    scala_input = "\n".join(scala_lines) + "\n"
+    result = subprocess.run(
+        ["joern"], input=scala_input, capture_output=True, text=True, timeout=timeout
+    )
+    return result.stdout
+
+
+def _extract_block(output: str) -> str | None:
+    match = re.search(r"###RESULT_START###(.*?)###RESULT_END###", output, re.DOTALL)
+    return match.group(1) if match else None
+
+
+def query_joern(cpg_path: str, component_simple_name: str, timeout: int = 180) -> dict:
+    """Trova metodi e sink pericolosi (presenza nel metodo, non ancora data flow)."""
+    lines = [
+        f'importCpg("{cpg_path}")',
+        f'val m = cpg.method.fullName(".*{component_simple_name}.*").l',
+        f'val s = cpg.call.name("{SINK_PATTERN}").where(_.method.fullName(".*{component_simple_name}.*")).l',
+        'println("###RESULT_START###")',
+        'println("METHOD_COUNT=" + m.size)',
+        'println("SINK_COUNT=" + s.size)',
+        f's.foreach(c => println("SINK{DELIM}" + c.name + "{DELIM}" + c.lineNumber.getOrElse(-1) + "{DELIM}" + c.code.replace("\\n", " ")))',
+        'println("###RESULT_END###")',
+        ':quit',
+    ]
+
+    try:
+        output = _run_joern(lines, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"component": component_simple_name, "error": f"Timeout dopo {timeout}s",
+                "method_count": 0, "sink_count": 0, "dangerous_sinks_found": []}
+
+    block = _extract_block(output)
+    if block is None:
+        return {"component": component_simple_name,
+                "error": f"Output non riconosciuto. Ultime 800 char: {output[-800:]}",
+                "method_count": 0, "sink_count": 0, "dangerous_sinks_found": []}
+
+    method_count_match = re.search(r"METHOD_COUNT=(\d+)", block)
+    sink_count_match = re.search(r"SINK_COUNT=(\d+)", block)
+    method_count = int(method_count_match.group(1)) if method_count_match else 0
+    sink_count = int(sink_count_match.group(1)) if sink_count_match else 0
+
+    sinks = []
+    for line in block.splitlines():
+        if "SINK" + DELIM in line:
+            idx = line.index("SINK" + DELIM)
+            clean_line = line[idx:]
+            parts = clean_line.split(DELIM)
+            if len(parts) >= 4:
+                sinks.append({"name": parts[1], "line": parts[2], "code": parts[3][:200]})
+
+    return {
+        "component": component_simple_name,
+        "method_count": method_count,
+        "sink_count": sink_count,
+        "dangerous_sinks_found": sinks,
+    }
+
+
+def trace_dataflow(cpg_path: str, component_simple_name: str, timeout: int = 240) -> dict:
+    """Verifica se esiste un percorso di data flow REALE da una source esterna
+    (getIntent/getExtras/...) a un sink pericoloso, dentro il componente dato.
+    Questo e' il passo di CONFERMA, non solo rilevamento."""
+    lines = [
+        f'importCpg("{cpg_path}")',
+        'import io.joern.dataflowengineoss.language._',
+        'import io.joern.dataflowengineoss.queryengine.EngineContext',
+        'implicit val context: EngineContext = EngineContext()',
+        f'val sources = cpg.call.name("{SOURCE_PATTERN}").where(_.method.fullName(".*{component_simple_name}.*"))',
+        f'val sinks = cpg.call.name("{SINK_PATTERN}").where(_.method.fullName(".*{component_simple_name}.*"))',
+        'val flows = sinks.reachableByFlows(sources).l',
+        'println("###RESULT_START###")',
+        'println("FLOWS_FOUND=" + flows.size)',
+        f'flows.foreach(f => println("FLOW{DELIM}" + f.elements.map(_.code.replace("\\n"," ")).mkString(" -> ")))',
+        'println("###RESULT_END###")',
+        ':quit',
+    ]
+
+    try:
+        output = _run_joern(lines, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"component": component_simple_name, "error": f"Timeout dopo {timeout}s",
+                "flows_found": 0, "flow_paths": []}
+
+    block = _extract_block(output)
+    if block is None:
+        return {"component": component_simple_name,
+                "error": f"Output non riconosciuto. Ultime 800 char: {output[-800:]}",
+                "flows_found": 0, "flow_paths": []}
+
+    flows_count_match = re.search(r"FLOWS_FOUND=(\d+)", block)
+    flows_found = int(flows_count_match.group(1)) if flows_count_match else 0
+
+    paths = []
+    for line in block.splitlines():
+        if "FLOW" + DELIM in line and "println(" not in line and "flows.foreach" not in line:
+            idx = line.index("FLOW" + DELIM)
+            path_text = line[idx + len("FLOW" + DELIM):]
+            paths.append(path_text)
+
+    return {
+        "component": component_simple_name,
+        "flows_found": flows_found,
+        "flow_paths": paths,
+    }
+
+
+def trace_storage_leak(cpg_path: str, component_simple_name: str, timeout: int = 240) -> dict:
+    """MASVS-STORAGE #6 / MASVS-PRIVACY #2: verifica se un valore letto da
+    SharedPreferences (source diversa da Intent) raggiunge un sink esterno
+    pericoloso (rete, broadcast, file, log) dentro il componente dato.
+
+    LIMITE NOTO ed esplicito: STORAGE_SOURCE_PATTERN usa nomi di metodo
+    generici (getString/getInt/...) che esistono anche su Bundle, JSONObject
+    e altre classi non legate a SharedPreferences. Questa funzione NON
+    verifica il receiver dell'istanza: un flow trovato qui e' un'IPOTESI da
+    verificare leggendo il codice reale (stessa disciplina usata su Tesla
+    BLEService.java per il caso SHA1), non una conferma automatica che la
+    source sia davvero SharedPreferences.
+    """
+    lines = [
+        f'importCpg("{cpg_path}")',
+        'import io.joern.dataflowengineoss.language._',
+        'import io.joern.dataflowengineoss.queryengine.EngineContext',
+        'implicit val context: EngineContext = EngineContext()',
+        f'val sources = cpg.call.name("{STORAGE_SOURCE_PATTERN}").where(_.method.fullName(".*{component_simple_name}.*"))',
+        f'val sinks = cpg.call.name("{SINK_PATTERN}").where(_.method.fullName(".*{component_simple_name}.*"))',
+        'val flows = sinks.reachableByFlows(sources).l',
+        'println("###RESULT_START###")',
+        'println("FLOWS_FOUND=" + flows.size)',
+        f'flows.foreach(f => println("FLOW{DELIM}" + f.elements.map(_.code.replace("\n"," ")).mkString(" -> ")))',
+        'println("###RESULT_END###")',
+        ':quit',
+    ]
+    try:
+        output = _run_joern(lines, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"component": component_simple_name, "error": f"Timeout dopo {timeout}s",
+                "flows_found": 0, "flow_paths": [],
+                "note": "Pattern STORAGE_SOURCE_PATTERN generico, verificare a mano ogni flow trovato."}
+    block = _extract_block(output)
+    if block is None:
+        return {"component": component_simple_name,
+                "error": f"Output non riconosciuto. Ultime 800 char: {output[-800:]}",
+                "flows_found": 0, "flow_paths": []}
+    flows_count_match = re.search(r"FLOWS_FOUND=(\d+)", block)
+    flows_found = int(flows_count_match.group(1)) if flows_count_match else 0
+    paths = []
+    for line in block.splitlines():
+        if "FLOW" + DELIM in line and "println(" not in line and "flows.foreach" not in line:
+            idx = line.index("FLOW" + DELIM)
+            path_text = line[idx + len("FLOW" + DELIM):]
+            paths.append(path_text)
+    return {
+        "component": component_simple_name,
+        "flows_found": flows_found,
+        "flow_paths": paths,
+        "note": "STORAGE_SOURCE_PATTERN e' generico (getString/getInt/...): "
+                "verificare manualmente che ogni flow trovato parta davvero "
+                "da una lettura SharedPreferences e non da Bundle/JSONObject/altro.",
+    }
+
+
+def full_analysis(cpg_path: str, component_simple_name: str) -> dict:
+    """Combina query_joern + trace_dataflow: trova i sink, e se ce ne sono,
+    verifica automaticamente se sono raggiungibili da una source esterna."""
+    sink_result = query_joern(cpg_path, component_simple_name)
+
+    dataflow_result = None
+    if sink_result.get("sink_count", 0) > 0 and "error" not in sink_result:
+        dataflow_result = trace_dataflow(cpg_path, component_simple_name)
+
+    return {
+        "sink_analysis": sink_result,
+        "dataflow_analysis": dataflow_result,
+    }
+
+
+def format_full_context(analysis: dict) -> str:
+    """Formatta il risultato combinato per il prompt del Reasoning Agent."""
+    sink_result = analysis["sink_analysis"]
+    dataflow_result = analysis["dataflow_analysis"]
+
+    if "error" in sink_result:
+        return f"[Joern CPG analysis non disponibile: {sink_result['error']}]"
+
+    method_count = sink_result.get("method_count", 0)
+    sink_count = sink_result.get("sink_count", 0)
+    sinks = sink_result.get("dangerous_sinks_found", [])
+
+    lines = [f"Joern CPG analysis: {method_count} metodi trovati per questo componente nel grafo del codice reale."]
+
+    if sink_count == 0:
+        lines.append(
+            "Nessuna chiamata a sink Android pericolosi trovata nel grafo per questo componente. "
+            "Dato verificato strutturalmente, non un'assenza per mancata ricerca."
+        )
+        return "\n".join(lines)
+
+    lines.append(f"{sink_count} chiamate a sink pericolosi trovate nel grafo:")
+    for s in sinks:
+        lines.append(f"  - {s['name']}() alla riga {s['line']}: {s['code']}")
+
+    if dataflow_result is None:
+        lines.append("\n[Data-flow tracing non eseguito]")
+    elif "error" in dataflow_result:
+        lines.append(f"\n[Data-flow tracing falito: {dataflow_result['error']}]")
+    else:
+        flows_found = dataflow_result.get("flows_found", 0)
+        if flows_found == 0:
+            lines.append(
+                "\nVERIFICA DATA-FLOW: nessun percorso di dati reale trovato tra source esterne "
+                "(getIntent/getExtras/getStringExtra/...) e i sink sopra elencati, dentro questo componente. "
+                "Questo INDEBOLISCE l'ipotesi di rischio: il sink esiste nel codice ma non risulta "
+                "raggiungibile da input esterno controllabile, secondo il grafo. "
+                "Nota: l'assenza di un percorso rilevato non esclude vie indirette non coperte da questa "
+                "analisi (es. campi di classe, SharedPreferences, callback asincroni)."
+            )
+        else:
+            lines.append(
+                f"\nVERIFICA DATA-FLOW: {flows_found} percorso/i di dati REALI confermati da source "
+                "esterna a sink pericoloso. Questo RAFFORZA l'ipotesi di rischio con una conferma strutturale:"
+            )
+            for path in dataflow_result.get("flow_paths", [])[:5]:
+                lines.append(f"    {path}")
+
+    return "\n".join(lines)
+
+
+def format_joern_context(joern_result: dict) -> str:
+    """Mantenuta per retrocompatibilita' con batch_analyze_manifest.py esistente."""
+    if "error" in joern_result:
+        return f"[Joern CPG analysis non disponibile: {joern_result['error']}]"
+    method_count = joern_result.get("method_count", 0)
+    sink_count = joern_result.get("sink_count", 0)
+    sinks = joern_result.get("dangerous_sinks_found", [])
+    lines = [f"Joern CPG analysis: {method_count} metodi trovati per questo componente nel grafo del codice reale."]
+    if sink_count == 0:
+        lines.append("Nessuna chiamata a sink Android pericolosi trovata nel grafo per questo componente.")
+    else:
+        lines.append(f"{sink_count} chiamate a sink pericolosi trovate nel grafo:")
+        for s in sinks:
+            lines.append(f"  - {s['name']}() alla riga {s['line']}: {s['code']}")
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cpg-path", required=True)
+    parser.add_argument("--component", required=True)
+    parser.add_argument("--full", action="store_true", help="Esegue analisi completa: sink + data-flow")
+    args = parser.parse_args()
+
+    if args.full:
+        result = full_analysis(args.cpg_path, args.component)
+        print(json.dumps(result, indent=2))
+        print("\n--- Formattato per il prompt ---")
+        print(format_full_context(result))
+    else:
+        result = query_joern(args.cpg_path, args.component)
+        print(json.dumps(result, indent=2))

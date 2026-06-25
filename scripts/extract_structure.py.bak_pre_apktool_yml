@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+extract_structure.py
+=====================
+Layer A - Structural Extraction (Step 1)
+
+Prende un APK e produce una rappresentazione strutturata su disco:
+  output/<app_id>/
+    manifest.json
+    components/{activities,services,receivers,providers}.json
+    code/decompiled/      (output Jadx)
+    metadata.json
+
+Uso:
+    python3 extract_structure.py /path/to/target.apk --output-dir ./output
+
+Requisiti sulla macchina locale:
+    - apktool  (decode manifest + risorse)
+    - jadx     (decompilazione a pseudo-Java)
+    - java 11+ (richiesto da entrambi)
+"""
+
+import argparse
+import hashlib
+import json
+import shutil
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field, asdict
+from pathlib import Path
+
+ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+
+def check_tool_available(tool_name: str) -> bool:
+    return shutil.which(tool_name) is not None
+
+
+def run_cmd(cmd: list, description: str) -> subprocess.CompletedProcess:
+    print(f"[*] {description}")
+    print(f"    $ {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"[!] Comando fallito (exit {result.returncode})", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+    return result
+
+
+def sha256_of_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def app_id_from_apk(apk_path: Path) -> str:
+    digest = sha256_of_file(apk_path)[:10]
+    stem = apk_path.stem.replace(" ", "_")
+    return f"{stem}_{digest}"
+
+
+def run_apktool_decode(apk_path: Path, work_dir: Path) -> Path:
+    decoded_dir = work_dir / "apktool_out"
+    if decoded_dir.exists():
+        shutil.rmtree(decoded_dir)
+
+    cmd = ["apktool", "d", "-f", "-o", str(decoded_dir), str(apk_path)]
+    result = run_cmd(cmd, "Decodifica manifest e risorse con apktool")
+    if result.returncode != 0:
+        raise RuntimeError("apktool decode fallito, vedi stderr sopra")
+    return decoded_dir
+
+
+def run_jadx_decompile(apk_path: Path, output_dir: Path) -> Path:
+    decompiled_dir = output_dir / "code" / "decompiled"
+    decompiled_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "jadx",
+        "-d", str(decompiled_dir),
+        "--no-res",
+        "--show-bad-code",
+        str(apk_path),
+    ]
+    result = run_cmd(cmd, "Decompilazione con jadx")
+
+    java_files = list(decompiled_dir.rglob("*.java"))
+    java_count = len(java_files)
+
+    if result.returncode != 0:
+        if java_count > 0:
+            print(f"[!] jadx ha segnalato errori (exit code {result.returncode}), "
+                  f"ma ha prodotto {java_count} file .java. "
+                  f"Probabile decompilazione parziale su classi minificate/offuscate "
+                  f"di librerie terze. Procedo comunque con l'analisi.")
+        else:
+            raise RuntimeError(
+                f"jadx decompile fallito completamente (exit code {result.returncode}, "
+                f"0 file .java prodotti). Vedi stderr sopra."
+            )
+    else:
+        print(f"[OK] jadx ha prodotto {java_count} file .java")
+
+    return decompiled_dir
+
+
+@dataclass
+class Component:
+    name: str
+    exported: object
+    permission: object
+    intent_filters: list = field(default_factory=list)
+    raw_attribs: dict = field(default_factory=dict)
+
+
+def _attr(elem, key: str):
+    if elem is None:
+        return None
+    return elem.get(f"{{{ANDROID_NS}}}{key}")
+
+
+def _parse_intent_filters(component_elem) -> list:
+    filters = []
+    for intent_filter in component_elem.findall("intent-filter"):
+        actions = [_attr(a, "name") for a in intent_filter.findall("action")]
+        categories = [_attr(c, "name") for c in intent_filter.findall("category")]
+        data_entries = []
+        for data in intent_filter.findall("data"):
+            entry = {
+                k: _attr(data, k)
+                for k in ("scheme", "host", "port", "path", "pathPrefix", "pathPattern", "mimeType")
+                if _attr(data, k) is not None
+            }
+            if entry:
+                data_entries.append(entry)
+        filters.append({
+            "actions": [a for a in actions if a],
+            "categories": [c for c in categories if c],
+            "data": data_entries,
+        })
+    return filters
+
+
+def _is_implicitly_exported(component_elem) -> bool:
+    return len(component_elem.findall("intent-filter")) > 0
+
+
+def parse_components(root, tag: str) -> list:
+    components = []
+    application = root.find("application")
+    if application is None:
+        return components
+
+    for elem in application.findall(tag):
+        name = _attr(elem, "name") or "UNKNOWN"
+        exported_raw = _attr(elem, "exported")
+        if exported_raw is None:
+            exported = None
+        else:
+            exported = exported_raw.lower() == "true"
+
+        permission = _attr(elem, "permission")
+        intent_filters = _parse_intent_filters(elem)
+
+        effective_exported = exported
+        if exported is None and _is_implicitly_exported(elem):
+            effective_exported = True
+
+        components.append(Component(
+            name=name,
+            exported=effective_exported,
+            permission=permission,
+            intent_filters=intent_filters,
+            raw_attribs={
+                "exported_declared_explicitly": exported_raw is not None,
+                "grant_uri_permissions": _attr(elem, "grantUriPermissions"),
+                "authorities": _attr(elem, "authorities"),
+                "permission": permission,
+            },
+        ))
+    return components
+
+
+def parse_manifest(manifest_path: Path) -> dict:
+    tree = ET.parse(manifest_path)
+    root = tree.getroot()
+
+    package = root.get("package")
+    uses_sdk = root.find("uses-sdk")
+    min_sdk = _attr(uses_sdk, "minSdkVersion") if uses_sdk is not None else None
+    target_sdk = _attr(uses_sdk, "targetSdkVersion") if uses_sdk is not None else None
+
+    permissions = [_attr(p, "name") for p in root.findall("uses-permission")]
+
+    components_by_type = {
+        "activities": parse_components(root, "activity"),
+        "services": parse_components(root, "service"),
+        "receivers": parse_components(root, "receiver"),
+        "providers": parse_components(root, "provider"),
+    }
+
+    return {
+        "package": package,
+        "min_sdk": min_sdk,
+        "target_sdk": target_sdk,
+        "permissions": [p for p in permissions if p],
+        "components": {
+            k: [asdict(c) for c in v] for k, v in components_by_type.items()
+        },
+    }
+
+
+def write_component_files(manifest_data: dict, output_dir: Path) -> None:
+    components_dir = output_dir / "components"
+    components_dir.mkdir(parents=True, exist_ok=True)
+    for comp_type, comp_list in manifest_data["components"].items():
+        with open(components_dir / f"{comp_type}.json", "w") as f:
+            json.dump(comp_list, f, indent=2)
+
+
+def write_metadata(apk_path: Path, manifest_data: dict, output_dir: Path) -> None:
+    metadata = {
+        "apk_filename": apk_path.name,
+        "apk_sha256": sha256_of_file(apk_path),
+        "package": manifest_data.get("package"),
+        "min_sdk": manifest_data.get("min_sdk"),
+        "target_sdk": manifest_data.get("target_sdk"),
+        "permission_count": len(manifest_data.get("permissions", [])),
+        "exported_component_summary": {
+            comp_type: sum(1 for c in comp_list if c.get("exported") is True)
+            for comp_type, comp_list in manifest_data["components"].items()
+        },
+    }
+    with open(output_dir / "metadata.json", "w") as f:
+        json.dump(metadata, f, indent=2)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Layer A - Structural Extraction")
+    parser.add_argument("apk_path", type=Path)
+    parser.add_argument("--output-dir", type=Path, default=Path("./output"))
+    parser.add_argument("--skip-jadx", action="store_true")
+    args = parser.parse_args()
+
+    apk_path = args.apk_path.resolve()
+    if not apk_path.exists():
+        print(f"[!] File non trovato: {apk_path}", file=sys.stderr)
+        sys.exit(1)
+
+    missing = [t for t in ("apktool", "jadx") if not check_tool_available(t)]
+    if missing:
+        print(f"[!] Tool mancanti nel PATH: {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
+
+    app_id = app_id_from_apk(apk_path)
+    output_dir = args.output_dir / app_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    work_dir = output_dir / "_work"
+    work_dir.mkdir(exist_ok=True)
+
+    print(f"[*] App ID: {app_id}")
+    print(f"[*] Output: {output_dir}")
+
+    decoded_dir = run_apktool_decode(apk_path, work_dir)
+    manifest_path = decoded_dir / "AndroidManifest.xml"
+    if not manifest_path.exists():
+        print("[!] AndroidManifest.xml non trovato dopo apktool decode", file=sys.stderr)
+        sys.exit(1)
+
+    print("[*] Parsing AndroidManifest.xml")
+    manifest_data = parse_manifest(manifest_path)
+    with open(output_dir / "manifest.json", "w") as f:
+        json.dump(manifest_data, f, indent=2)
+    write_component_files(manifest_data, output_dir)
+    write_metadata(apk_path, manifest_data, output_dir)
+
+    if not args.skip_jadx:
+        run_jadx_decompile(apk_path, output_dir)
+    else:
+        print("[*] Decompilazione jadx saltata (--skip-jadx)")
+
+    shutil.rmtree(work_dir, ignore_errors=True)
+
+    print("\n[✓] Estrazione strutturale completata.")
+    print(f"    manifest.json       -> {output_dir / 'manifest.json'}")
+    print(f"    components/*.json   -> {output_dir / 'components'}")
+    print(f"    metadata.json       -> {output_dir / 'metadata.json'}")
+    if not args.skip_jadx:
+        print(f"    code/decompiled/    -> {output_dir / 'code' / 'decompiled'}")
+
+
+if __name__ == "__main__":
+    main()

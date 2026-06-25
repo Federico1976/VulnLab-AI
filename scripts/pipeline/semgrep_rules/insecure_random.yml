@@ -1,0 +1,19 @@
+rules:
+  - id: apk-agent-insecure-random-for-crypto
+    languages: [java]
+    severity: WARNING
+    message: >
+      Uso di java.util.Random invece di SecureRandom. Se il valore generato
+      e usato per token, chiavi, salt, nonce o ID di reset password, il PRNG
+      e predicibile e un attaccante puo indovinare il prossimo valore generato.
+      VERIFICARE manualmente il contesto: se il valore non alimenta nulla di
+      sensibile (es. solo UI/animazioni), non e un finding reale.
+    metadata:
+      category: security
+      cwe: "CWE-330: Use of Insufficiently Random Values"
+      owasp_masvs: "MASVS-CRYPTO"
+      references:
+        - https://mas.owasp.org/MASTG/0x04g-Testing-Cryptography/
+    pattern-either:
+      - pattern: new Random()
+      - pattern: new Random($SEED)

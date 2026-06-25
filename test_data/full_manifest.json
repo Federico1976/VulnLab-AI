@@ -1,0 +1,109 @@
+{
+  "package": "com.example.testapp",
+  "min_sdk": "21",
+  "target_sdk": "33",
+  "permissions": [
+    "android.permission.INTERNET",
+    "android.permission.READ_CONTACTS"
+  ],
+  "components": {
+    "activities": [
+      {
+        "name": ".MainActivity",
+        "exported": true,
+        "permission": null,
+        "intent_filters": [
+          {
+            "actions": ["android.intent.action.MAIN"],
+            "categories": ["android.intent.category.LAUNCHER"],
+            "data": []
+          }
+        ],
+        "raw_attribs": {
+          "exported_declared_explicitly": true,
+          "grant_uri_permissions": null,
+          "authorities": null,
+          "permission": null
+        }
+      },
+      {
+        "name": ".DeepLinkActivity",
+        "exported": true,
+        "permission": null,
+        "intent_filters": [
+          {
+            "actions": ["android.intent.action.VIEW"],
+            "categories": ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"],
+            "data": [{"scheme": "testapp", "host": "open", "pathPrefix": "/item"}]
+          }
+        ],
+        "raw_attribs": {
+          "exported_declared_explicitly": false,
+          "grant_uri_permissions": null,
+          "authorities": null,
+          "permission": null
+        }
+      },
+      {
+        "name": ".InternalSettingsActivity",
+        "exported": null,
+        "permission": null,
+        "intent_filters": [],
+        "raw_attribs": {
+          "exported_declared_explicitly": false,
+          "grant_uri_permissions": null,
+          "authorities": null,
+          "permission": null
+        }
+      }
+    ],
+    "services": [
+      {
+        "name": ".BackgroundSyncService",
+        "exported": false,
+        "permission": null,
+        "intent_filters": [],
+        "raw_attribs": {
+          "exported_declared_explicitly": true,
+          "grant_uri_permissions": null,
+          "authorities": null,
+          "permission": null
+        }
+      }
+    ],
+    "receivers": [
+      {
+        "name": ".SmsReceiver",
+        "exported": true,
+        "permission": "android.permission.BROADCAST_SMS",
+        "intent_filters": [
+          {
+            "actions": ["android.provider.Telephony.SMS_RECEIVED"],
+            "categories": [],
+            "data": []
+          }
+        ],
+        "raw_attribs": {
+          "exported_declared_explicitly": true,
+          "grant_uri_permissions": null,
+          "authorities": null,
+          "permission": "android.permission.BROADCAST_SMS"
+        }
+      }
+    ],
+    "providers": [
+      {
+        "name": ".FileProvider",
+        "exported": true,
+        "permission": null,
+        "intent_filters": [],
+        "raw_attribs": {
+          "exported_declared_explicitly": true,
+          "grant_uri_permissions": "true",
+          "authorities": "com.example.testapp.fileprovider",
+          "permission": null
+        }
+      }
+    ]
+  }
+}

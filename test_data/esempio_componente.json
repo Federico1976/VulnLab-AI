@@ -1,0 +1,20 @@
+{
+  "name": ".DeepLinkActivity",
+  "exported": true,
+  "permission": null,
+  "intent_filters": [
+    {
+      "actions": ["android.intent.action.VIEW"],
+      "categories": ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"],
+      "data": [
+        {"scheme": "testapp", "host": "open", "pathPrefix": "/item"}
+      ]
+    }
+  ],
+  "raw_attribs": {
+    "exported_declared_explicitly": false,
+    "grant_uri_permissions": null,
+    "authorities": null,
+    "permission": null
+  }
+}

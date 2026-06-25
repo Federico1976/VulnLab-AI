@@ -1,0 +1,26 @@
+rules:
+  - id: apk-agent-sensitive-data-in-log
+    languages: [java]
+    severity: WARNING
+    message: >
+      Chiamata a Log.* con argomento il cui nome suggerisce contenuto sensibile
+      (password, token, secret, auth, credential). I log sono accessibili via
+      adb logcat anche senza root su molte versioni Android, e finiscono spesso
+      in crash report/log di sistema. VERIFICARE manualmente cosa contiene
+      realmente la variabile prima di confermare il finding.
+    metadata:
+      category: security
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      owasp_masvs: "MASVS-CODE"
+      references:
+        - https://mas.owasp.org/MASTG/0x05i-Testing-Code-Quality-and-Build-Settings/
+    patterns:
+      - pattern-either:
+          - pattern: Log.d($TAG, $MSG)
+          - pattern: Log.v($TAG, $MSG)
+          - pattern: Log.i($TAG, $MSG)
+          - pattern: Log.e($TAG, $MSG)
+      - metavariable-pattern:
+          metavariable: $MSG
+          patterns:
+            - pattern-regex: (?i).*(password|token|secret|auth|credential|apikey|api_key).*
