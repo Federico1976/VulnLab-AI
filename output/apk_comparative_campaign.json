@@ -1,0 +1,150 @@
+{
+  "model": "apk_comparative_campaign_v1",
+  "principle": "compare APKs by semantic evidence quality, not raw finding count",
+  "rows": [
+    {
+      "target": "output/base_449df7fd46",
+      "semantic_story_quality": "strong_semantic_objects",
+      "bridge_objects": 840,
+      "bridge_types": [
+        "activity_intent_router_bridge",
+        "react_native_bridge",
+        "webview_deeplink_bridge"
+      ],
+      "stories": 120,
+      "stories_high": 0,
+      "stories_medium": 120,
+      "stories_low": 0,
+      "reachability_paths": 120,
+      "reachability_status": {
+        "entrypoint_surface_candidate": 120
+      },
+      "validation_plans": 120,
+      "disclosure_ready": 0,
+      "reasoning_stories_exported": 25,
+      "known_limitations": [
+        "reachability_predictive_not_proven",
+        "confidence_still_flat_for_non_flutter",
+        "fixed_story_pruning_can_make_outputs_uniform"
+      ],
+      "comparative_grade": "B_strong_semantic_candidate"
+    },
+    {
+      "target": "output/vienna_lab",
+      "semantic_story_quality": "strong_semantic_objects",
+      "bridge_objects": 187,
+      "bridge_types": [
+        "activity_intent_router_bridge",
+        "webview_deeplink_bridge"
+      ],
+      "stories": 120,
+      "stories_high": 0,
+      "stories_medium": 120,
+      "stories_low": 0,
+      "reachability_paths": 120,
+      "reachability_status": {
+        "entrypoint_surface_candidate": 120
+      },
+      "validation_plans": 120,
+      "disclosure_ready": 0,
+      "reasoning_stories_exported": 25,
+      "known_limitations": [
+        "reachability_predictive_not_proven",
+        "confidence_still_flat_for_non_flutter",
+        "fixed_story_pruning_can_make_outputs_uniform"
+      ],
+      "comparative_grade": "B_strong_semantic_candidate"
+    },
+    {
+      "target": "output/seek_lab",
+      "semantic_story_quality": "strong_semantic_objects",
+      "bridge_objects": 550,
+      "bridge_types": [
+        "activity_intent_router_bridge",
+        "webview_deeplink_bridge"
+      ],
+      "stories": 120,
+      "stories_high": 0,
+      "stories_medium": 120,
+      "stories_low": 0,
+      "reachability_paths": 120,
+      "reachability_status": {
+        "entrypoint_surface_candidate": 120
+      },
+      "validation_plans": 120,
+      "disclosure_ready": 0,
+      "reasoning_stories_exported": 25,
+      "known_limitations": [
+        "reachability_predictive_not_proven",
+        "confidence_still_flat_for_non_flutter",
+        "fixed_story_pruning_can_make_outputs_uniform"
+      ],
+      "comparative_grade": "B_strong_semantic_candidate"
+    },
+    {
+      "target": "output/linktree_lab",
+      "semantic_story_quality": "strong_semantic_objects",
+      "bridge_objects": 485,
+      "bridge_types": [
+        "activity_intent_router_bridge",
+        "react_native_bridge",
+        "webview_deeplink_bridge"
+      ],
+      "stories": 120,
+      "stories_high": 0,
+      "stories_medium": 120,
+      "stories_low": 0,
+      "reachability_paths": 120,
+      "reachability_status": {
+        "entrypoint_surface_candidate": 120
+      },
+      "validation_plans": 120,
+      "disclosure_ready": 0,
+      "reasoning_stories_exported": 25,
+      "known_limitations": [
+        "reachability_predictive_not_proven",
+        "confidence_still_flat_for_non_flutter",
+        "fixed_story_pruning_can_make_outputs_uniform"
+      ],
+      "comparative_grade": "B_strong_semantic_candidate"
+    },
+    {
+      "target": "output/mashop_lab",
+      "semantic_story_quality": "causal_evidence_stories_ready_for_reachability",
+      "bridge_objects": 52,
+      "bridge_types": [
+        "activity_intent_router_bridge",
+        "webview_deeplink_bridge"
+      ],
+      "stories": 106,
+      "stories_high": 33,
+      "stories_medium": 73,
+      "stories_low": 0,
+      "reachability_paths": 106,
+      "reachability_status": {
+        "entrypoint_surface_candidate": 69,
+        "runtime_method_candidate": 37
+      },
+      "validation_plans": 106,
+      "disclosure_ready": 0,
+      "reasoning_stories_exported": 25,
+      "known_limitations": [
+        "reachability_predictive_not_proven",
+        "confidence_still_flat_for_non_flutter",
+        "fixed_story_pruning_can_make_outputs_uniform"
+      ],
+      "comparative_grade": "A_ready_for_reachability_focus"
+    }
+  ],
+  "summary": {
+    "targets": 5,
+    "grades": {
+      "A_ready_for_reachability_focus": 1,
+      "B_strong_semantic_candidate": 4
+    },
+    "total_stories": 586,
+    "total_high_stories": 33,
+    "total_validation_plans": 586,
+    "disclosure_ready": 0
+  }
+}
