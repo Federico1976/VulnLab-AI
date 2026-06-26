@@ -63,6 +63,29 @@ It produces:
 - dynamic validation plans
 - responsible disclosure candidates
 
+## Example from my lab
+
+<img width="483" height="150" alt="image" src="https://github.com/user-attachments/assets/96a895cd-9f5d-43a8-9501-a08283cba854" />
+
+<img width="1084" height="410" alt="image" src="https://github.com/user-attachments/assets/11b212cc-4b72-4269-b2da-f4f239951347" />
+
+<img width="1086" height="434" alt="image" src="https://github.com/user-attachments/assets/4770c8b4-43e4-4c4e-bff7-21e6f3200362" />
+
+<img width="1086" height="532" alt="image" src="https://github.com/user-attachments/assets/63cce3c8-a9d3-4730-a358-c9173f971e0d" />
+
+<img width="1098" height="368" alt="image" src="https://github.com/user-attachments/assets/ffa1312a-b34c-46ab-87e7-9e06c834a8c9" />
+
+<img width="1044" height="505" alt="image" src="https://github.com/user-attachments/assets/f1fa3ae7-0938-4a19-ac7d-991850fcbbb1" />
+
+<img width="877" height="568" alt="image" src="https://github.com/user-attachments/assets/a78d3e64-4b2c-4791-9c4e-41a7ec163383" />
+
+
+
+
+
+
+
+
 ## Responsible Use
 
 This project is intended only for:
