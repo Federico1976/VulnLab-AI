@@ -33,3 +33,14 @@ import_log.txt
 external_sources/Claude-BugHunter/
 tools/joern-cli.zip
 tools/joern-cli.zip
+
+# VulnLab-AI local artifacts
+apks/
+output/
+tmp/
+*.bak
+*.bak_*
+*.bak_phase_b_*
+__pycache__/
+*.pyc
+validation_feedback/local_feedback.json

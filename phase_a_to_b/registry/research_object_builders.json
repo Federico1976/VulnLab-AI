@@ -1,0 +1,41 @@
+{
+  "schema": "vulnlab.research_object_builder_registry.v1",
+  "builders": [
+    {
+      "id": "fileprovider",
+      "module": "phase_a_to_b.builders.fileprovider_research_object_builder",
+      "output": "fileprovider_research_objects.json",
+      "always": true
+    },
+    {
+      "id": "deeplink",
+      "module": "phase_a_to_b.builders.deeplink_research_object_builder",
+      "output": "deeplink_research_objects.json",
+      "requires_any_pipeline": ["deeplink_manifest_hunt"]
+    },
+    {
+      "id": "kotlin_compose",
+      "module": "phase_a_to_b.builders.kotlin_compose_research_object_builder",
+      "output": "kotlin_compose_research_objects.json",
+      "requires_any_pipeline": ["kotlin_compose_static_hunt"]
+    },
+    {
+      "id": "react_native",
+      "module": "phase_a_to_b.builders.react_native_research_object_builder",
+      "output": "react_native_research_objects.json",
+      "requires_any_pipeline": ["rn_multilayer_hunt"]
+    },
+    {
+      "id": "flutter",
+      "module": "phase_a_to_b.builders.flutter_research_object_builder",
+      "output": "flutter_research_objects.json",
+      "requires_any_pipeline": ["flutter_surface_hunt"]
+    },
+    {
+      "id": "webview",
+      "module": "phase_a_to_b.builders.webview_research_object_builder",
+      "output": "webview_research_objects.json",
+      "requires_any_pipeline": ["webview_hunt"]
+    }
+  ]
+}

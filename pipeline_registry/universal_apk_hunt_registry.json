@@ -1,0 +1,80 @@
+{
+  "schema": "vulnlab.pipeline_registry.v1",
+  "pipeline": "universal_apk_hunt",
+  "principles": {
+    "candidate_evidence_only": true,
+    "no_vulnerability_without_causal_reachability": true,
+    "no_vulnerability_without_dynamic_validation": true,
+    "no_target_specific_detectors": true,
+    "llm_reads_semantic_artifacts_not_raw_massive_code": true
+  },
+  "stages": [
+    {
+      "id": "apk_characterization",
+      "module": "core.apk_characterization_engine",
+      "produces": ["apk_characterization.json", "universal_apk_summary.json"]
+    },
+    {
+      "id": "joern_result_normalization",
+      "module": "phase_b.joern_results.joern_execution_result_normalizer",
+      "produces": ["phase_b/normalized_joern_results.json"]
+    },
+    {
+      "id": "fileprovider_research_object_builder",
+      "module": "phase_a_to_b.builders.fileprovider_research_object_builder",
+      "produces": ["phase_b/fileprovider_research_objects.json"]
+    },
+    {
+      "id": "research_object_merge",
+      "module": "phase_b.find_research_objects.write_merged_research_objects",
+      "produces": ["phase_b/merged_research_objects.json"]
+    },
+    {
+      "id": "research_object_enrichment_v2",
+      "module": "phase_a_to_b.research_object_enricher_v2",
+      "consumes": ["phase_b/merged_research_objects.json"],
+      "produces": ["phase_b/merged_research_objects.json"]
+    },
+    {
+      "id": "semantic_entities_v2",
+      "module": "phase_b.semantic_entities.entity_builder + research_object_semantic_expander_v2",
+      "consumes": ["phase_b/merged_research_objects.json"],
+      "produces": ["phase_b_brain/semantic_entities.json"]
+    },
+    {
+      "id": "capabilities_v2",
+      "module": "phase_b.capabilities.semantic_capability_builder + semantic_capability_enricher_v2",
+      "produces": ["phase_b_brain/semantic_capabilities.json"]
+    },
+    {
+      "id": "evidence_models_v2",
+      "module": "phase_b.evidence_model.evidence_model_builder + evidence_model_enricher_v2",
+      "produces": ["phase_b_brain/evidence_models.json"]
+    },
+    {
+      "id": "causal_reachability_v2",
+      "module": "phase_b.causal_reachability.causal_reachability_engine_v2",
+      "produces": ["phase_b_brain/causal_reachability_v2.json"]
+    },
+    {
+      "id": "proof_evaluator_v3",
+      "module": "phase_b.proof_evaluator.proof_evaluator + joern_enricher_v2 + causal_enricher_v3",
+      "produces": ["phase_b_brain/proof_evaluations.json"]
+    },
+    {
+      "id": "dynamic_validation_planner_v2",
+      "module": "phase_b.dynamic_validation.dynamic_validation_planner + dynamic_validation_planner_v2",
+      "produces": ["phase_b_brain/dynamic_validation_plans.json"]
+    },
+    {
+      "id": "learning_and_strategy",
+      "module": "phase_b.learning_memory + phase_b.research_strategy_memory",
+      "produces": ["phase_b_brain/learning_memory.json", "phase_b_brain/research_strategy_memory.json"]
+    },
+    {
+      "id": "final_report_v2",
+      "module": "phase_b.reports.phase_b_final_report",
+      "produces": ["phase_b_brain/phase_b_final_report.json"]
+    }
+  ]
+}

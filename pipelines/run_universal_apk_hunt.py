@@ -1,6 +1,9 @@
 import subprocess
 import sys
 from pathlib import Path
+from phase_b.find_research_objects import find_research_objects, write_merged_research_objects
+from phase_b.brain_runner import run_phase_b_brain
+
 
 
 def run(cmd):
@@ -53,7 +56,72 @@ def main():
     else:
         print("[+] RN multilayer skipped: rn_sensitive_execution_paths.json not present")
 
+    # Phase B Cognitive Brain integration
+    _run_phase_a_to_b_research_object_builders(out)
+    _try_run_phase_b_brain_after_phase_a(out)
+
     print("[+] Universal APK hunt completed")
+
+
+
+
+def _run_phase_a_to_b_research_object_builders(out_dir: Path):
+    phase_b_dir = out_dir / "phase_b"
+    phase_b_dir.mkdir(parents=True, exist_ok=True)
+
+    steps = [
+        [
+            sys.executable,
+            "-m",
+            "phase_b.joern_results.joern_execution_result_normalizer",
+            str(out_dir),
+            str(phase_b_dir / "normalized_joern_results.json"),
+        ],
+        [
+            sys.executable,
+            "-m",
+            "phase_a_to_b.universal_research_object_builder_factory",
+            str(out_dir),
+        ],
+    ]
+
+    for cmd in steps:
+        print(f"[PHASE_A_TO_B] {' '.join(cmd)}")
+        rc = subprocess.call(cmd)
+        print(f"[PHASE_A_TO_B_RC] {rc}")
+
+
+def _try_run_phase_b_brain_after_phase_a(phase_a_output_dir):
+    """Run Phase B cognitive brain if Phase A produced Research Objects."""
+    try:
+        phase_a_output_dir = Path(phase_a_output_dir)
+        research_objects = find_research_objects(phase_a_output_dir)
+
+        if not research_objects:
+            print(f"[WARN] Phase B skipped: no research_objects json found under {phase_a_output_dir}")
+            return None
+
+        phase_b_output_dir = phase_a_output_dir / "phase_b_brain"
+        merged_research_objects_json = write_merged_research_objects(phase_a_output_dir)
+
+        cmd = [
+            sys.executable,
+            "-m",
+            "phase_a_to_b.research_object_enricher_v2",
+            str(merged_research_objects_json),
+            str(merged_research_objects_json),
+        ]
+        print(f"[PHASE_A_TO_B] {' '.join(cmd)}")
+        rc = subprocess.call(cmd)
+        print(f"[PHASE_A_TO_B_RC] {rc}")
+
+        report = run_phase_b_brain(merged_research_objects_json, phase_b_output_dir)
+        print(f"[OK] Phase B cognitive brain completed: {report}")
+        return report
+
+    except Exception as e:
+        print(f"[WARN] Phase B cognitive brain failed: {e}")
+        return None
 
 
 if __name__ == "__main__":
