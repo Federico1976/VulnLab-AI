@@ -24,6 +24,8 @@ def main():
     ap.add_argument("--campaign-name", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=1)
+    ap.add_argument("--run-dynamic-probes", action="store_true")
+    ap.add_argument("--package", default="")
     args=ap.parse_args()
 
     started=time.time()
@@ -96,6 +98,33 @@ def main():
                 f"--out {source_to_sink}"
             ))
 
+        source_to_sink_plan = out_dir/"runtime_source_to_sink_plan_v1.json"
+        source_to_sink_results = out_dir/"source_to_sink_probe_results_v1.json"
+        source_to_sink_interpretation = out_dir/"source_to_sink_probe_interpretation_v1.json"
+
+        if source_to_sink.exists() and args.package:
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_instrumentation_planner "
+                f"--paths {source_to_sink} "
+                f"--package {args.package} "
+                f"--out {source_to_sink_plan}"
+            ))
+
+        if args.run_dynamic_probes and source_to_sink_plan.exists() and args.package:
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_probe_executor "
+                f"--plan {source_to_sink_plan} "
+                f"--package {args.package} "
+                f"--out {source_to_sink_results}"
+            ))
+            if source_to_sink_results.exists():
+                steps.append(sh(
+                    f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_probe_interpreter "
+                    f"--results {source_to_sink_results} "
+                    f"--package {args.package} "
+                    f"--out {source_to_sink_interpretation}"
+                ))
+
         if closure.exists():
             closure_reports.append(str(closure))
             steps.append(sh(
@@ -121,6 +150,7 @@ def main():
             "proof_graph_completed":orch.get("summary",{}).get("proof_graph_completed"),
             "closure_reports":len(closure_reports),
             "episode_updates":len(episode_updates),
+            "dynamic_source_to_sink_enabled":args.run_dynamic_probes,
             "candidate_only":True,
             "finding_allowed":False,
             "elapsed_sec":round(time.time()-started,2)
