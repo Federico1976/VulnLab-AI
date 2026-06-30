@@ -160,6 +160,19 @@ def main():
                 f"--out {llm_trace_review}"
             ))
 
+        causal_llm_packet = out_dir/"causal_graph_llm_packet_v1.json"
+        causal_graph = out_dir/"universal_causal_graph_v1.json"
+        if causal_graph.exists() and args.package:
+            review_arg = f"--llm-review {llm_trace_review}" if llm_trace_review.exists() else ""
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.causal_graph_llm_packet "
+                f"--causal-graph {causal_graph} "
+                f"{review_arg} "
+                f"--target {item.get('target','APK Target')!r} "
+                f"--package {args.package} "
+                f"--out {causal_llm_packet}"
+            ))
+
         if closure.exists():
             closure_reports.append(str(closure))
             steps.append(sh(
