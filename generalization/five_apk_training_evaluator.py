@@ -4,12 +4,23 @@ import json, time
 from pathlib import Path
 
 def load(p):
-    p=Path(p)
-    return json.loads(p.read_text()) if p.exists() else {}
+    if not p:
+        return {}
+    p = Path(p)
+    return json.loads(p.read_text()) if p.exists() and p.is_file() else {}
 
 def save(p,d):
     p=Path(p); p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(d, indent=2, ensure_ascii=False))
+
+def first_file(base, patterns):
+    base=Path(base)
+    for pat in patterns:
+        found=sorted(base.rglob(pat))
+        found=[x for x in found if x.is_file()]
+        if found:
+            return found[-1]
+    return None
 
 def main():
     import argparse
@@ -18,24 +29,27 @@ def main():
     ap.add_argument("--out", required=True)
     args=ap.parse_args()
 
-    rows=[]
-    shape_dist={}
-    states={}
+    rows=[]; shape_dist={}; states={}
+
     for base in args.targets:
         b=Path(base)
-        report=load(next(b.glob("*complete*report.json"), ""))
-        orch=report.get("orchestrator_summary", {})
+        report_path=first_file(b, ["*complete*report.json", "*orchestrated_report.json"])
+        probe_path=first_file(b, ["source_to_sink_probe_interpretation_v1.json"])
+
+        report=load(report_path)
+        orch=report.get("orchestrator_summary", report.get("summary", {}))
+
         for k,v in orch.get("primary_shape_distribution", {}).items():
             shape_dist[k]=shape_dist.get(k,0)+v
 
-        interp=load(b.parent.parent/(b.name.replace("bugbounty_",""))/"dummy") # harmless placeholder
-        probe_files=list(b.glob("source_to_sink_probe_interpretation_v1.json"))
-        probe=load(probe_files[0]) if probe_files else {}
+        probe=load(probe_path)
         for k,v in probe.get("summary",{}).get("by_state",{}).items():
             states[k]=states.get(k,0)+v
 
         rows.append({
             "base":str(b),
+            "report":str(report_path) if report_path else None,
+            "probe":str(probe_path) if probe_path else None,
             "primary_shape_distribution":orch.get("primary_shape_distribution",{}),
             "avg_policy_score":orch.get("avg_policy_score"),
             "avg_proof_score":orch.get("avg_proof_score"),
