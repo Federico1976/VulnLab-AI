@@ -1,0 +1,541 @@
+{
+  "status": "ok",
+  "schema": "vulnlab.candidate_review_report.v1",
+  "summary": {
+    "candidates": 32,
+    "promotion_ready": 5,
+    "needs_review": 27,
+    "requires_llm_competence": 27
+  },
+  "records": [
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/android_deeplink_webview_pattern_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-DEEPLINK-WEBVIEW-001",
+      "source_quality": "manual_research_note",
+      "family": "deeplink_to_webview_navigation",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "promotion_ready",
+      "requires_llm_competence": false,
+      "recommended_competences": []
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/android_exported_component_intent_injection_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-EXPORTED-COMPONENT-INTENT-INJECTION-001",
+      "source_quality": "manual_research_note",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "promotion_ready",
+      "requires_llm_competence": false,
+      "recommended_competences": []
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/android_fileprovider_exposure_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-FILEPROVIDER-EXPOSURE-001",
+      "source_quality": "manual_research_note",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "promotion_ready",
+      "requires_llm_competence": false,
+      "recommended_competences": []
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/android_token_storage_exposure_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-TOKEN-STORAGE-EXPOSURE-001",
+      "source_quality": "manual_research_note",
+      "family": "token_storage_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "promotion_ready",
+      "requires_llm_competence": false,
+      "recommended_competences": []
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/android_webview_js_bridge_origin_confusion_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-WEBVIEW-JS-BRIDGE-001",
+      "source_quality": "manual_research_note",
+      "family": "webview_js_bridge_origin_confusion",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "promotion_ready",
+      "requires_llm_competence": false,
+      "recommended_competences": []
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_android_bulletin_2026_01_01.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-BULLETIN-2026-01-01",
+      "source_quality": "android_security_bulletin",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_android_bulletin_2026_02_01.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-BULLETIN-2026-02-01",
+      "source_quality": "android_security_bulletin",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_android_bulletin_2026_03_01.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-BULLETIN-2026-03-01",
+      "source_quality": "android_security_bulletin",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_android_bulletin_file_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-BULLETIN-FILE-001",
+      "source_quality": "android_security_bulletin",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_android_bulletin_intent_001.candidate.json",
+      "case_id": "VC-CANDIDATE-ANDROID-BULLETIN-INTENT-001",
+      "source_quality": "android_security_bulletin",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2000_0239.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2000-0239",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2002_0122.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2002-0122",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2003_1464.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2003-1464",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2004_0049.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2004-0049",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2004_2588.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2004-2588",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2006_3730.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2006-3730",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2006_5899.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2006-5899",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2007_5430.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2007-5430",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2008_0985.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2008-0985",
+      "source_quality": "nvd_cve",
+      "family": "token_storage_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2008_0986.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2008-0986",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2008_5552.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2008-5552",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2008_5678.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2008-5678",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2009_0606.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2009-0606",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2013_0013.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2013-0013",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2013_2318.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2013-2318",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2019_9140.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2019-9140",
+      "source_quality": "nvd_cve",
+      "family": "webview_js_bridge_origin_confusion",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2020_11882.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2020-11882",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2021_25354.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2021-25354",
+      "source_quality": "nvd_cve",
+      "family": "exported_component_intent_injection",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2023_0482.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2023-0482",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_nvd_cve_2023_30707.candidate.json",
+      "case_id": "VC-CANDIDATE-NVD-CVE-2023-30707",
+      "source_quality": "nvd_cve",
+      "family": "fileprovider_exposure",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_osv_ghsa_3cqm_mf7h_prrj.candidate.json",
+      "case_id": "VC-CANDIDATE-OSV-GHSA-3cqm-mf7h-prrj",
+      "source_quality": "osv",
+      "family": "dependency_security_advisory",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [
+        "trust_boundary",
+        "sensitive_operation",
+        "security_effect",
+        "exploit_primitive"
+      ],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    },
+    {
+      "path": "phase_c/knowledge_ingestion/vulnerability_case_candidates/raw_osv_ghsa_4hc2_jh7r_wrc3.candidate.json",
+      "case_id": "VC-CANDIDATE-OSV-GHSA-4hc2-jh7r-wrc3",
+      "source_quality": "osv",
+      "family": "dependency_security_advisory",
+      "validator_status": "valid",
+      "validator_errors": [],
+      "seed_unknowns": [
+        "trust_boundary",
+        "sensitive_operation",
+        "security_effect",
+        "exploit_primitive"
+      ],
+      "review_status": "needs_review",
+      "requires_llm_competence": true,
+      "recommended_competences": [
+        "extract_root_cause",
+        "extract_trust_boundary",
+        "extract_counterevidence",
+        "extract_dynamic_validation_idea"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "vulnlab.universal_abc_campaign_manifest.v1",
+  "items": [
+    {
+      "name": "campaign_5",
+      "apk": "apks/campaign_5/com.example.flutter_http_server.apk",
+      "output": "output/campaign_abc_campaign_5",
+      "enabled": true
+    },
+    {
+      "name": "campaign_5",
+      "apk": "apks/campaign_5/com.lesspass.android.apk",
+      "output": "output/campaign_abc_campaign_5",
+      "enabled": true
+    },
+    {
+      "name": "campaign_5",
+      "apk": "apks/campaign_5/dev.anilbeesetti.nextplayer.apk",
+      "output": "output/campaign_abc_campaign_5",
+      "enabled": true
+    },
+    {
+      "name": "campaign_5",
+      "apk": "apks/campaign_5/net.opendsp.x4x4.apk",
+      "output": "output/campaign_abc_campaign_5",
+      "enabled": true
+    },
+    {
+      "name": "campaign_5",
+      "apk": "apks/campaign_5/uk.nktnet.webviewkiosk.apk",
+      "output": "output/campaign_abc_campaign_5",
+      "enabled": true
+    },
+    {
+      "name": "croc_app",
+      "apk": "apks/croc_app/croc_app.apk",
+      "output": "output/campaign_abc_croc_app",
+      "enabled": true
+    },
+    {
+      "name": "ionic_hybridapp",
+      "apk": "apks/ionic_hybridapp/base.apk",
+      "output": "output/campaign_abc_ionic_hybridapp",
+      "enabled": true
+    },
+    {
+      "name": "linktr_admin",
+      "apk": "apks/linktr_admin/base.apk",
+      "output": "output/campaign_abc_linktr_admin",
+      "enabled": true
+    },
+    {
+      "name": "spotube",
+      "apk": "apks/spotube/spotube.apk",
+      "output": "output/campaign_abc_spotube",
+      "enabled": true
+    }
+  ]
+}

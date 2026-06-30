@@ -1,0 +1,398 @@
+{
+  "status": "ok",
+  "schema": "vulnlab.research_strategy_memory_store.v1",
+  "summary": {
+    "strategies": 5,
+    "patterns_consumed": 5,
+    "finding_allowed": false,
+    "requires_dynamic_validation": true
+  },
+  "strategies": [
+    {
+      "schema": "vulnlab.research_strategy.v1",
+      "strategy_id": "RS-DEEPLINK_TO_WEBVIEW_NAVIGATION",
+      "derived_from_pattern": "PM-DEEPLINK_TO_WEBVIEW_NAVIGATION",
+      "family": "deeplink_to_webview_navigation",
+      "case_count": 2,
+      "investigation_goal": "Validate whether an observed APK pattern represents a real security-relevant trust-boundary failure.",
+      "reasoning_sequence": [
+        "Identify externally or attacker-controllable entrypoint",
+        "Map attacker-controlled input shape",
+        "Confirm trust boundary crossed",
+        "Identify sensitive operation or security effect",
+        "Search for validators, permissions, allowlists, canonicalization, or origin checks",
+        "Collect counterevidence before increasing confidence",
+        "Design safe dynamic validation",
+        "Do not claim vulnerability without runtime evidence"
+      ],
+      "focus_points": {
+        "trust_boundaries": [
+          "external_app_to_app_internal"
+        ],
+        "entrypoints": [
+          "deeplink",
+          "custom_scheme",
+          "app_link"
+        ],
+        "sensitive_operations": [
+          "webview_load_url"
+        ],
+        "security_effects": [
+          "attacker_controlled_navigation"
+        ],
+        "exploit_primitives": [
+          "webview_navigation_injection"
+        ]
+      },
+      "counterevidence_first": {
+        "common_false_positives": [
+          "Sensitive API code present but unused",
+          "Entrypoint opens app but does not propagate attacker data",
+          "Component is permission protected",
+          "Sink only receives constant trusted values",
+          "Validation blocks untrusted input",
+          "WebView library code present but unused",
+          "DeepLink opens app but does not propagate attacker data to sink",
+          "Component is exported but permission protected",
+          "Sink only loads constant trusted URL",
+          "Allowlist exists and blocks untrusted hosts"
+        ],
+        "counter_signals": [
+          "strict_validation_present",
+          "no_source_to_sink_path",
+          "runtime_trigger_does_not_reach_component",
+          "attacker_input_replaced_by_constant",
+          "sink_unreachable_from_observed_entrypoint",
+          "strict_scheme_host_path_allowlist",
+          "bridge_disabled_on_untrusted_content"
+        ]
+      },
+      "dynamic_validation_methods": [
+        "safe_runtime_trigger",
+        "runtime_hook_or_logcat",
+        "negative_validation_test",
+        "adb_intent_trigger",
+        "negative_allowlist_test"
+      ],
+      "heuristics": [
+        "Prioritize trust-boundary crossings with attacker-controlled input",
+        "Do not trust API presence without reachability",
+        "Search for validation before sensitive operation",
+        "Use dynamic validation to observe runtime behavior",
+        "Prioritize cases where external URI routing and WebView navigation coexist",
+        "Do not trust WebView API presence unless attacker-controlled input reaches it",
+        "Search for allowlist enforcement before the sink",
+        "Use dynamic validation to observe actual runtime sink arguments",
+        "Map entrypoint controllability first",
+        "Check whether sensitive sink is first-party reachable",
+        "Generate safe benign dynamic tests",
+        "Prefer counterevidence search before escalation",
+        "Map entrypoint controllability before inspecting WebView internals",
+        "Check whether sink is first-party reachable or plugin scaffolding only",
+        "Generate safe dynamic tests with benign controlled domains",
+        "Prefer counterevidence search before escalating confidence"
+      ],
+      "claim_guardrail": {
+        "finding_allowed": false,
+        "max_claim_without_dynamic_validation": "candidate_evidence_or_causal_static_evidence",
+        "requires_dynamic_validation": true,
+        "requires_counterevidence_review": true
+      }
+    },
+    {
+      "schema": "vulnlab.research_strategy.v1",
+      "strategy_id": "RS-EXPORTED_COMPONENT_INTENT_INJECTION",
+      "derived_from_pattern": "PM-EXPORTED_COMPONENT_INTENT_INJECTION",
+      "family": "exported_component_intent_injection",
+      "case_count": 1,
+      "investigation_goal": "Validate whether an observed APK pattern represents a real security-relevant trust-boundary failure.",
+      "reasoning_sequence": [
+        "Identify externally or attacker-controllable entrypoint",
+        "Map attacker-controlled input shape",
+        "Confirm trust boundary crossed",
+        "Identify sensitive operation or security effect",
+        "Search for validators, permissions, allowlists, canonicalization, or origin checks",
+        "Collect counterevidence before increasing confidence",
+        "Design safe dynamic validation",
+        "Do not claim vulnerability without runtime evidence"
+      ],
+      "focus_points": {
+        "trust_boundaries": [
+          "external_app_to_app_internal"
+        ],
+        "entrypoints": [
+          "exported_activity",
+          "exported_service",
+          "exported_receiver"
+        ],
+        "sensitive_operations": [
+          "privileged_action_execution"
+        ],
+        "security_effects": [
+          "privileged_action_execution"
+        ],
+        "exploit_primitives": [
+          "intent_injection"
+        ]
+      },
+      "counterevidence_first": {
+        "common_false_positives": [
+          "Sensitive API code present but unused",
+          "Entrypoint opens app but does not propagate attacker data",
+          "Component is permission protected",
+          "Sink only receives constant trusted values",
+          "Validation blocks untrusted input"
+        ],
+        "counter_signals": [
+          "strict_validation_present",
+          "no_source_to_sink_path",
+          "runtime_trigger_does_not_reach_component",
+          "attacker_input_replaced_by_constant",
+          "sink_unreachable_from_observed_entrypoint"
+        ]
+      },
+      "dynamic_validation_methods": [
+        "safe_runtime_trigger",
+        "runtime_hook_or_logcat",
+        "negative_validation_test"
+      ],
+      "heuristics": [
+        "Prioritize trust-boundary crossings with attacker-controlled input",
+        "Do not trust API presence without reachability",
+        "Search for validation before sensitive operation",
+        "Use dynamic validation to observe runtime behavior",
+        "Map entrypoint controllability first",
+        "Check whether sensitive sink is first-party reachable",
+        "Generate safe benign dynamic tests",
+        "Prefer counterevidence search before escalation"
+      ],
+      "claim_guardrail": {
+        "finding_allowed": false,
+        "max_claim_without_dynamic_validation": "candidate_evidence_or_causal_static_evidence",
+        "requires_dynamic_validation": true,
+        "requires_counterevidence_review": true
+      }
+    },
+    {
+      "schema": "vulnlab.research_strategy.v1",
+      "strategy_id": "RS-FILEPROVIDER_EXPOSURE",
+      "derived_from_pattern": "PM-FILEPROVIDER_EXPOSURE",
+      "family": "fileprovider_exposure",
+      "case_count": 1,
+      "investigation_goal": "Validate whether an observed APK pattern represents a real security-relevant trust-boundary failure.",
+      "reasoning_sequence": [
+        "Identify externally or attacker-controllable entrypoint",
+        "Map attacker-controlled input shape",
+        "Confirm trust boundary crossed",
+        "Identify sensitive operation or security effect",
+        "Search for validators, permissions, allowlists, canonicalization, or origin checks",
+        "Collect counterevidence before increasing confidence",
+        "Design safe dynamic validation",
+        "Do not claim vulnerability without runtime evidence"
+      ],
+      "focus_points": {
+        "trust_boundaries": [
+          "content_uri_to_filesystem"
+        ],
+        "entrypoints": [
+          "content_provider",
+          "fileprovider"
+        ],
+        "sensitive_operations": [
+          "file_read"
+        ],
+        "security_effects": [
+          "unauthorized_file_read"
+        ],
+        "exploit_primitives": [
+          "content_uri_confusion"
+        ]
+      },
+      "counterevidence_first": {
+        "common_false_positives": [
+          "Sensitive API code present but unused",
+          "Entrypoint opens app but does not propagate attacker data",
+          "Component is permission protected",
+          "Sink only receives constant trusted values",
+          "Validation blocks untrusted input"
+        ],
+        "counter_signals": [
+          "strict_validation_present",
+          "no_source_to_sink_path",
+          "runtime_trigger_does_not_reach_component",
+          "attacker_input_replaced_by_constant",
+          "sink_unreachable_from_observed_entrypoint"
+        ]
+      },
+      "dynamic_validation_methods": [
+        "safe_runtime_trigger",
+        "runtime_hook_or_logcat",
+        "negative_validation_test"
+      ],
+      "heuristics": [
+        "Prioritize trust-boundary crossings with attacker-controlled input",
+        "Do not trust API presence without reachability",
+        "Search for validation before sensitive operation",
+        "Use dynamic validation to observe runtime behavior",
+        "Map entrypoint controllability first",
+        "Check whether sensitive sink is first-party reachable",
+        "Generate safe benign dynamic tests",
+        "Prefer counterevidence search before escalation"
+      ],
+      "claim_guardrail": {
+        "finding_allowed": false,
+        "max_claim_without_dynamic_validation": "candidate_evidence_or_causal_static_evidence",
+        "requires_dynamic_validation": true,
+        "requires_counterevidence_review": true
+      }
+    },
+    {
+      "schema": "vulnlab.research_strategy.v1",
+      "strategy_id": "RS-TOKEN_STORAGE_EXPOSURE",
+      "derived_from_pattern": "PM-TOKEN_STORAGE_EXPOSURE",
+      "family": "token_storage_exposure",
+      "case_count": 1,
+      "investigation_goal": "Validate whether an observed APK pattern represents a real security-relevant trust-boundary failure.",
+      "reasoning_sequence": [
+        "Identify externally or attacker-controllable entrypoint",
+        "Map attacker-controlled input shape",
+        "Confirm trust boundary crossed",
+        "Identify sensitive operation or security effect",
+        "Search for validators, permissions, allowlists, canonicalization, or origin checks",
+        "Collect counterevidence before increasing confidence",
+        "Design safe dynamic validation",
+        "Do not claim vulnerability without runtime evidence"
+      ],
+      "focus_points": {
+        "trust_boundaries": [
+          "app_internal_storage_to_attacker"
+        ],
+        "entrypoints": [
+          "local_storage",
+          "logs",
+          "backup",
+          "exported_file"
+        ],
+        "sensitive_operations": [
+          "token_read"
+        ],
+        "security_effects": [
+          "sensitive_data_exfiltration"
+        ],
+        "exploit_primitives": [
+          "token_leakage"
+        ]
+      },
+      "counterevidence_first": {
+        "common_false_positives": [
+          "Sensitive API code present but unused",
+          "Entrypoint opens app but does not propagate attacker data",
+          "Component is permission protected",
+          "Sink only receives constant trusted values",
+          "Validation blocks untrusted input"
+        ],
+        "counter_signals": [
+          "strict_validation_present",
+          "no_source_to_sink_path",
+          "runtime_trigger_does_not_reach_component",
+          "attacker_input_replaced_by_constant",
+          "sink_unreachable_from_observed_entrypoint"
+        ]
+      },
+      "dynamic_validation_methods": [
+        "safe_runtime_trigger",
+        "runtime_hook_or_logcat",
+        "negative_validation_test"
+      ],
+      "heuristics": [
+        "Prioritize trust-boundary crossings with attacker-controlled input",
+        "Do not trust API presence without reachability",
+        "Search for validation before sensitive operation",
+        "Use dynamic validation to observe runtime behavior",
+        "Map entrypoint controllability first",
+        "Check whether sensitive sink is first-party reachable",
+        "Generate safe benign dynamic tests",
+        "Prefer counterevidence search before escalation"
+      ],
+      "claim_guardrail": {
+        "finding_allowed": false,
+        "max_claim_without_dynamic_validation": "candidate_evidence_or_causal_static_evidence",
+        "requires_dynamic_validation": true,
+        "requires_counterevidence_review": true
+      }
+    },
+    {
+      "schema": "vulnlab.research_strategy.v1",
+      "strategy_id": "RS-WEBVIEW_JS_BRIDGE_ORIGIN_CONFUSION",
+      "derived_from_pattern": "PM-WEBVIEW_JS_BRIDGE_ORIGIN_CONFUSION",
+      "family": "webview_js_bridge_origin_confusion",
+      "case_count": 1,
+      "investigation_goal": "Validate whether an observed APK pattern represents a real security-relevant trust-boundary failure.",
+      "reasoning_sequence": [
+        "Identify externally or attacker-controllable entrypoint",
+        "Map attacker-controlled input shape",
+        "Confirm trust boundary crossed",
+        "Identify sensitive operation or security effect",
+        "Search for validators, permissions, allowlists, canonicalization, or origin checks",
+        "Collect counterevidence before increasing confidence",
+        "Design safe dynamic validation",
+        "Do not claim vulnerability without runtime evidence"
+      ],
+      "focus_points": {
+        "trust_boundaries": [
+          "web_content_to_native_code"
+        ],
+        "entrypoints": [
+          "webview_bridge",
+          "javascript_interface"
+        ],
+        "sensitive_operations": [
+          "webview_add_javascript_interface"
+        ],
+        "security_effects": [
+          "native_bridge_invocation"
+        ],
+        "exploit_primitives": [
+          "javascript_bridge_abuse"
+        ]
+      },
+      "counterevidence_first": {
+        "common_false_positives": [
+          "Sensitive API code present but unused",
+          "Entrypoint opens app but does not propagate attacker data",
+          "Component is permission protected",
+          "Sink only receives constant trusted values",
+          "Validation blocks untrusted input"
+        ],
+        "counter_signals": [
+          "strict_validation_present",
+          "no_source_to_sink_path",
+          "runtime_trigger_does_not_reach_component",
+          "attacker_input_replaced_by_constant",
+          "sink_unreachable_from_observed_entrypoint"
+        ]
+      },
+      "dynamic_validation_methods": [
+        "safe_runtime_trigger",
+        "runtime_hook_or_logcat",
+        "negative_validation_test"
+      ],
+      "heuristics": [
+        "Prioritize trust-boundary crossings with attacker-controlled input",
+        "Do not trust API presence without reachability",
+        "Search for validation before sensitive operation",
+        "Use dynamic validation to observe runtime behavior",
+        "Map entrypoint controllability first",
+        "Check whether sensitive sink is first-party reachable",
+        "Generate safe benign dynamic tests",
+        "Prefer counterevidence search before escalation"
+      ],
+      "claim_guardrail": {
+        "finding_allowed": false,
+        "max_claim_without_dynamic_validation": "candidate_evidence_or_causal_static_evidence",
+        "requires_dynamic_validation": true,
+        "requires_counterevidence_review": true
+      }
+    }
+  ]
+}

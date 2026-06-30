@@ -1,0 +1,79 @@
+{
+  "path_traversal_or_sensitive_file_access": {
+    "description": "Runtime-controlled path reaches file construction or file read/write sinks.",
+    "positive_indicators": [
+      "External or bridge-controlled path input",
+      "new File(path)",
+      "FileInputStream(path)",
+      "No canonical path validation",
+      "Path can escape intended directory"
+    ],
+    "false_positive_indicators": [
+      "Path is constrained to app-private directory",
+      "Canonical path check enforces allowed prefix",
+      "Input is selected only from trusted internal storage",
+      "Sink reads non-sensitive files only"
+    ],
+    "required_proofs": [
+      "attacker controls path",
+      "path reaches file sink",
+      "normalization/sanitization is missing or bypassable",
+      "impact crosses a security boundary"
+    ],
+    "validation_strategy": [
+      "Try traversal payloads",
+      "Try absolute paths",
+      "Try app-private and external storage boundaries",
+      "Verify readable sensitive target or meaningful impact"
+    ]
+  },
+  "unsafe_intent_file_exposure": {
+    "description": "Runtime-controlled file or URI is handed to an Intent or external component.",
+    "positive_indicators": [
+      "Uri.fromFile(file)",
+      "Intent.setDataAndType",
+      "Implicit intent",
+      "Externally influenced path",
+      "Missing FileProvider restrictions"
+    ],
+    "false_positive_indicators": [
+      "Explicit trusted component only",
+      "FileProvider with strict path mapping",
+      "Non-sensitive file only",
+      "User confirmation required and security boundary not crossed"
+    ],
+    "required_proofs": [
+      "input controls file or URI",
+      "intent path is reachable",
+      "receiver can access unintended content",
+      "dynamic validation confirms exposure"
+    ],
+    "validation_strategy": [
+      "Trace URI construction",
+      "Check FileProvider configuration",
+      "Check intent explicitness",
+      "Test receiving component access"
+    ]
+  },
+  "unknown_candidate": {
+    "description": "Security-relevant signals exist but are not sufficient for classification.",
+    "positive_indicators": [],
+    "false_positive_indicators": [
+      "No source",
+      "No sink",
+      "No reachable path",
+      "No security boundary"
+    ],
+    "required_proofs": [
+      "identify source",
+      "identify sink",
+      "prove reachability",
+      "validate impact"
+    ],
+    "validation_strategy": [
+      "Enrich semantic object",
+      "Run causal reachability upgrade",
+      "Collect dynamic evidence"
+    ]
+  }
+}

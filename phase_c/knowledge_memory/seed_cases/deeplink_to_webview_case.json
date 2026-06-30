@@ -1,0 +1,335 @@
+{
+  "schema": "vulnlab.vulnerability_case.v1",
+  "identity": {
+    "case_id": "VC-ANDROID-DEEPLINK-WEBVIEW-001",
+    "title": "External deep link data reaches WebView navigation without sufficient origin validation",
+    "source_refs": [
+      {
+        "type": "generalized_pattern",
+        "reference": "android_deeplink_webview_public_bug_pattern"
+      }
+    ],
+    "source_quality": "generalized_from_public_android_bug_patterns",
+    "ecosystem": "android",
+    "vulnerability_family": "deeplink_to_webview_navigation"
+  },
+  "affected_context": {
+    "platform": "android",
+    "runtime": "android_or_cross_platform",
+    "framework": [
+      "native_android",
+      "flutter",
+      "react_native",
+      "hybrid_webview"
+    ],
+    "component_type": [
+      "activity",
+      "webview",
+      "plugin_bridge"
+    ],
+    "entrypoint_type": [
+      "deeplink",
+      "custom_scheme",
+      "app_link"
+    ],
+    "exposed_surface": "externally_reachable_uri_routing",
+    "data_domain": "uri_navigation",
+    "privilege_context": "app_internal_webview_context"
+  },
+  "causal_shape": {
+    "attacker_position": {
+      "value": "external_app",
+      "confidence": "high"
+    },
+    "attacker_controlled_input": {
+      "type": "intent_data_uri",
+      "control_level": "structured",
+      "controlled_parts": [
+        "scheme",
+        "host",
+        "path",
+        "query"
+      ],
+      "confidence": "medium"
+    },
+    "entrypoint": {
+      "type": "custom_scheme_or_deeplink",
+      "component_type": "activity",
+      "component_name": "case_specific_or_unknown",
+      "exposure": "externally_reachable",
+      "invocation_method": "android_intent",
+      "confidence": "high"
+    },
+    "trust_boundary": {
+      "from": "external_app",
+      "to": "app_internal_routing",
+      "boundary_type": "external_app_to_app_internal",
+      "confidence": "high"
+    },
+    "propagation_shape": {
+      "path_type": "parsed_then_forwarded",
+      "transformations": [
+        "uri_parse",
+        "route_dispatch",
+        "optional_plugin_channel_dispatch"
+      ],
+      "state_dependencies": [
+        "app_initialized",
+        "router_or_plugin_registered"
+      ],
+      "propagation_confidence": "medium"
+    },
+    "sensitive_operation": {
+      "type": "webview_load_url",
+      "sink_family": "webview_navigation",
+      "security_relevance": "attacker_controlled_navigation",
+      "confidence": "medium"
+    },
+    "missing_or_weak_control": {
+      "type": "weak_host_allowlist",
+      "expected_control": "strict_scheme_host_path_allowlist_before_sink",
+      "status": "suspected_until_proven",
+      "confidence": "low"
+    },
+    "security_effect": {
+      "type": "attacker_controlled_navigation",
+      "impact_boundary": "in_app_webview_context",
+      "confidence": "medium"
+    },
+    "exploit_primitive": {
+      "type": "webview_navigation_injection",
+      "confidence": "medium"
+    },
+    "causal_requirements": [
+      {
+        "id": "CR-001",
+        "description": "External caller can invoke the entrypoint",
+        "evidence_source": "manifest_analysis_or_dynamic_trigger",
+        "required_for_claim_level": "candidate_evidence"
+      },
+      {
+        "id": "CR-002",
+        "description": "Attacker-controlled URI propagates toward WebView navigation sink",
+        "evidence_source": "causal_reachability_or_runtime_observation",
+        "required_for_claim_level": "causal_static_evidence"
+      },
+      {
+        "id": "CR-003",
+        "description": "Untrusted URI is not rejected by effective validation before reaching the sink",
+        "evidence_source": "proof_evaluator_or_dynamic_validation",
+        "required_for_claim_level": "dynamic_validated_candidate"
+      }
+    ],
+    "causal_breakpoints": [
+      {
+        "id": "CB-001",
+        "description": "Component is not exported or requires non-attacker permission",
+        "demotion_effect": "not_externally_reachable"
+      },
+      {
+        "id": "CB-002",
+        "description": "Strict scheme/host/path allowlist rejects untrusted input before sink",
+        "demotion_effect": "benign_or_low_priority"
+      },
+      {
+        "id": "CB-003",
+        "description": "WebView code is present only as unused library or plugin scaffolding",
+        "demotion_effect": "signal_only"
+      }
+    ]
+  },
+  "exploitability_model": {
+    "required_conditions": [
+      "entrypoint_is_externally_reachable",
+      "attacker_controls_uri_parts",
+      "uri_reaches_webview_navigation_sink",
+      "validation_does_not_block_untrusted_target"
+    ],
+    "negative_conditions": [
+      "strict_allowlist_present",
+      "caller_identity_checked",
+      "sink_uses_constant_trusted_url",
+      "webview_bridge_disabled_for_untrusted_content"
+    ],
+    "attacker_capabilities": [
+      "send_android_intent",
+      "control_deeplink_uri"
+    ],
+    "user_interaction": "may_be_required_depending_on_entrypoint",
+    "environment_conditions": [
+      "target_app_installed",
+      "deeplink_registered"
+    ],
+    "version_conditions": []
+  },
+  "evidence_model": {
+    "static_evidence_required": [
+      {
+        "id": "SE-001",
+        "description": "Externally reachable deeplink or custom scheme exists",
+        "maps_to_phase_ab": "ResearchObject.EntrypointEntity",
+        "required": true
+      },
+      {
+        "id": "SE-002",
+        "description": "WebView navigation sink exists",
+        "maps_to_phase_ab": "SinkEntity.CapabilityGraph",
+        "required": true
+      }
+    ],
+    "causal_evidence_required": [
+      {
+        "id": "CE-001",
+        "description": "Attacker-controlled deeplink data propagates toward WebView navigation",
+        "maps_to_phase_ab": "CausalReachability",
+        "required": true
+      },
+      {
+        "id": "CE-002",
+        "description": "No effective allowlist or sanitizer is observed on the propagation path",
+        "maps_to_phase_ab": "ProofEvaluator.UnknownResolver",
+        "required": true
+      }
+    ],
+    "dynamic_evidence_required": [
+      {
+        "id": "DE-001",
+        "description": "External intent with controlled URI reaches the target component",
+        "validation_method": "adb_intent_trigger",
+        "required": true
+      },
+      {
+        "id": "DE-002",
+        "description": "Controlled URI is observed at WebView.loadUrl or equivalent sink",
+        "validation_method": "runtime_hook_or_logcat",
+        "required": true
+      },
+      {
+        "id": "DE-003",
+        "description": "Untrusted host is not rejected before sink",
+        "validation_method": "negative_allowlist_test",
+        "required": true
+      }
+    ],
+    "counterevidence_required": [
+      {
+        "id": "CO-001",
+        "description": "Check whether strict scheme/host/path allowlist exists",
+        "demotion_effect": "downgrade_to_benign_or_low_priority",
+        "required": true
+      },
+      {
+        "id": "CO-002",
+        "description": "Check whether WebView code is unused plugin/library scaffolding",
+        "demotion_effect": "downgrade_to_signal_only",
+        "required": true
+      }
+    ],
+    "minimum_claim_level": {
+      "without_static": "no_claim",
+      "with_static_only": "candidate_evidence",
+      "with_causal_static": "causal_static_evidence",
+      "with_dynamic": "dynamic_validated_candidate",
+      "with_dynamic_and_counterevidence_cleared": "confirmed_vulnerability_requires_human_review"
+    },
+    "disallowed_claims": [
+      {
+        "id": "DC-001",
+        "claim": "WebView vulnerability",
+        "reason": "WebView API presence alone does not imply attacker reachability"
+      },
+      {
+        "id": "DC-002",
+        "claim": "Exploitable deeplink",
+        "reason": "Deeplink presence alone does not prove propagation to sensitive sink"
+      }
+    ],
+    "confidence_rules": {
+      "promotes": [
+        {
+          "condition": "external_trigger_observed_and_controlled_uri_reaches_sink",
+          "effect": "raise_to_dynamic_validated_candidate"
+        }
+      ],
+      "demotes": [
+        {
+          "condition": "strict_host_allowlist_blocks_untrusted_input",
+          "effect": "downgrade_to_benign"
+        },
+        {
+          "condition": "webview_sink_exists_only_in_unused_plugin_scaffolding",
+          "effect": "downgrade_to_signal_only"
+        }
+      ]
+    },
+    "evidence_gaps": [
+      {
+        "id": "EG-001",
+        "gap_type": "missing_runtime_sink_observation",
+        "suggested_next_action": "instrument_webview_loadurl_and_trigger_deeplink"
+      },
+      {
+        "id": "EG-002",
+        "gap_type": "missing_sanitizer_analysis",
+        "suggested_next_action": "inspect_route_validation_and_allowlist_logic"
+      }
+    ]
+  },
+  "counterevidence_model": {
+    "common_false_positives": [
+      "WebView library code present but unused",
+      "DeepLink opens app but does not propagate attacker data to sink",
+      "Component is exported but permission protected",
+      "Sink only loads constant trusted URL",
+      "Allowlist exists and blocks untrusted hosts"
+    ],
+    "counter_signals": [
+      "strict_scheme_host_path_allowlist",
+      "no_source_to_sink_path",
+      "runtime_trigger_does_not_reach_component",
+      "attacker_input_replaced_by_constant",
+      "bridge_disabled_on_untrusted_content"
+    ],
+    "demotion_rules": [
+      {
+        "condition": "library_scaffolding_only",
+        "effect": "signal_only"
+      },
+      {
+        "condition": "strict_allowlist_confirmed",
+        "effect": "benign_or_low_priority"
+      },
+      {
+        "condition": "no_runtime_reachability",
+        "effect": "not_externally_reachable"
+      }
+    ],
+    "safe_benign_explanations": [
+      "The app registers a deeplink only for navigation to trusted internal routes",
+      "The WebView package is included by a plugin but not exercised by attacker input",
+      "The URI is parsed but only used to select internal screens"
+    ]
+  },
+  "learning_model": {
+    "root_cause": "Untrusted external URI data may cross into WebView navigation without sufficient origin validation",
+    "faulty_assumption": "Only legitimate app or trusted links will invoke the deep link entrypoint",
+    "investigation_heuristics": [
+      "Prioritize cases where external URI routing and WebView navigation coexist",
+      "Do not trust WebView API presence unless attacker-controlled input reaches it",
+      "Search for allowlist enforcement before the sink",
+      "Use dynamic validation to observe actual runtime sink arguments"
+    ],
+    "reusable_patterns": [
+      "external_app_to_app_internal_routing",
+      "deeplink_to_webview_navigation",
+      "attacker_controlled_navigation",
+      "missing_origin_validation"
+    ],
+    "strategy_hints": [
+      "Map entrypoint controllability before inspecting WebView internals",
+      "Check whether sink is first-party reachable or plugin scaffolding only",
+      "Generate safe dynamic tests with benign controlled domains",
+      "Prefer counterevidence search before escalating confidence"
+    ]
+  }
+}

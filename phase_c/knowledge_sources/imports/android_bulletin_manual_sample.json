@@ -1,0 +1,37 @@
+{
+  "schema": "vulnlab.android_bulletin_manual_import.v1",
+  "items": [
+    {
+      "source_id": "RAW-ANDROID-BULLETIN-INTENT-001",
+      "title": "Android bulletin pattern: exported or privileged component misuse",
+      "summary": "A generalized Android Security Bulletin style item describing component exposure or privileged action execution where attacker-controlled intents may cross an app or platform trust boundary without sufficient permission or caller validation.",
+      "android_relevance_tags": [
+        "intent"
+      ],
+      "expected_case_family": "exported_component_intent_injection",
+      "references": [
+        {
+          "type": "vendor_bulletin_family",
+          "value": "android_security_bulletin_component_boundary_pattern"
+        }
+      ],
+      "human_reviewed": true
+    },
+    {
+      "source_id": "RAW-ANDROID-BULLETIN-FILE-001",
+      "title": "Android bulletin pattern: file or content URI exposure",
+      "summary": "A generalized Android Security Bulletin style item describing unintended file access through content URI, file path handling, or insufficient path validation at a trust boundary.",
+      "android_relevance_tags": [
+        "file"
+      ],
+      "expected_case_family": "fileprovider_exposure",
+      "references": [
+        {
+          "type": "vendor_bulletin_family",
+          "value": "android_security_bulletin_file_boundary_pattern"
+        }
+      ],
+      "human_reviewed": true
+    }
+  ]
+}

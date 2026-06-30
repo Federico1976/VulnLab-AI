@@ -1,0 +1,46 @@
+{
+  "schema": "vulnlab.knowledge_source_registry.v1",
+  "sources": [
+    {
+      "source_id": "manual_public_writeup",
+      "type": "manual_research_note",
+      "enabled": true,
+      "trust_level": "human_review_required",
+      "output": "phase_c/knowledge_ingestion/raw_items"
+    },
+    {
+      "source_id": "android_security_bulletin",
+      "type": "android_security_bulletin",
+      "enabled": false,
+      "trust_level": "high_quality_vendor_source",
+      "output": "phase_c/knowledge_ingestion/raw_items"
+    },
+    {
+      "source_id": "nvd_cve",
+      "type": "nvd_cve",
+      "enabled": false,
+      "trust_level": "structured_public_database",
+      "output": "phase_c/knowledge_ingestion/raw_items"
+    },
+    {
+      "source_id": "github_advisory",
+      "type": "github_advisory",
+      "enabled": false,
+      "trust_level": "structured_public_database",
+      "output": "phase_c/knowledge_ingestion/raw_items"
+    },
+    {
+      "source_id": "osv",
+      "type": "osv",
+      "enabled": false,
+      "trust_level": "structured_public_database",
+      "output": "phase_c/knowledge_ingestion/raw_items"
+    }
+  ],
+  "guardrail": {
+    "raw_items_are_not_findings": true,
+    "requires_normalization": true,
+    "requires_validation": true,
+    "requires_dynamic_validation_before_finding": true
+  }
+}

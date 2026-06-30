@@ -1,46 +1,40 @@
-# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 .venv/
 venv/
-env/
+.env
+.DS_Store
+*.log
+/tmp/
 
-# Local outputs / labs
+# Heavy/generated artifacts
+apks/
 output/
 workspace/
 targets/
 candidate_queue/
-import_log.txt
-
-# Joern / CPG artifacts
-*.cpg
-*.bin.zip
-.sc.semanticcpg/
-.sc/
-
-# Logs
-*.log
-
-# OS / editors
-.DS_Store
-.idea/
-.vscode/
-external_sources/Claude-BugHunter/
-tools/joern-cli.zip
+reasoning_agent/workspace/
 tools/joern-cli.zip
 
-# VulnLab-AI local artifacts
-apks/
-output/
-tmp/
+# Backup files
 *.bak
 *.bak_*
-*.bak_phase_b_*
-__pycache__/
-*.pyc
-validation_feedback/local_feedback.json
+*.zip
+
+# Embedded repos / external cloned sources
+external_sources/Claude-BugHunter/
+
+# Generated knowledge/training datasets
+import_log.txt
+phase_c/knowledge_ingestion/raw_items/
+phase_c/knowledge_ingestion/normalized_items/
+phase_c/knowledge_ingestion/vulnerability_case_candidates/
+phase_c/knowledge_ingestion/llm_review_packets/
+phase_c/knowledge_ingestion/llm_review_results/
+phase_c/knowledge_ingestion/verified_cases/
+
+# Local databases/cache
+*.sqlite
+*.db
+*.cache
+.cache/
