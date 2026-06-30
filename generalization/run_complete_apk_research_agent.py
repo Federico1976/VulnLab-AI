@@ -136,6 +136,19 @@ def main():
                     f"--out {source_to_sink_interpretation}"
                 ))
 
+        llm_trace_review = out_dir/"llm_trace_reviewer_v1.json"
+        static_trace = out_dir/"static_trace_v1.json"
+        if static_trace.exists() and args.package:
+            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.llm_trace_reviewer "
+                f"--static-trace {static_trace} "
+                f"{probe_arg} "
+                f"--target {item.get('target','APK Target')!r} "
+                f"--package {args.package} "
+                f"--out {llm_trace_review}"
+            ))
+
         if closure.exists():
             closure_reports.append(str(closure))
             steps.append(sh(
