@@ -145,6 +145,68 @@ def run_policy_for_outputs(repo: Path, output_dirs: List[str], external_knowledg
     return results
 
 
+
+def run_local_planner_and_proof_graph(repo: Path, output_dirs: List[str], director_out: str | None = None) -> List[Dict[str, Any]]:
+    results = []
+
+    for out_dir in output_dirs:
+        base = Path(out_dir)
+        gen = base / "generalization"
+        phase_b = base / "phase_b"
+
+        policy = gen / "policy_engine_v1.json"
+        reasoning = gen / "reasoning_session_v2.json"
+        research_objects = phase_b / "merged_research_objects.json"
+        local_plan = gen / "local_investigation_plan_v1.json"
+        proof_graph = gen / "evidence_proof_graph_v1.json"
+
+        if not policy.exists() or not reasoning.exists() or not research_objects.exists():
+            results.append({
+                "output_dir": out_dir,
+                "ok": False,
+                "reason": "missing_policy_reasoning_or_research_objects",
+            })
+            continue
+
+        director_arg = director_out if director_out else str(policy)
+
+        lp_run = run_cmd([
+            sys.executable,
+            "-m",
+            "generalization.local_investigation_planner",
+            "--policy", str(policy),
+            "--director", director_arg,
+            "--research-objects", str(research_objects),
+            "--max-plans", "5",
+            "--out", str(local_plan),
+        ], cwd=repo)
+
+        epg_run = run_cmd([
+            sys.executable,
+            "-m",
+            "generalization.evidence_proof_graph",
+            "--local-plan", str(local_plan),
+            "--reasoning", str(reasoning),
+            "--policy", str(policy),
+            "--out", str(proof_graph),
+        ], cwd=repo)
+
+        epg = load_json(proof_graph)
+
+        results.append({
+            "output_dir": out_dir,
+            "ok": lp_run.get("ok") and epg_run.get("ok"),
+            "local_plan": str(local_plan),
+            "proof_graph": str(proof_graph),
+            "top_component": epg.get("summary", {}).get("top_component"),
+            "top_proof_score": epg.get("summary", {}).get("top_proof_score"),
+            "top_disclosure_readiness": epg.get("summary", {}).get("top_disclosure_readiness"),
+            "finding_allowed": epg.get("summary", {}).get("finding_allowed"),
+        })
+
+    return results
+
+
 def run_distillation(repo: Path, out_snapshot: str, out_guard: str) -> Dict[str, Any]:
     cmd = [
         sys.executable,
@@ -253,6 +315,9 @@ def main() -> None:
         args.policy_budget,
     )
 
+    print("[+] running local investigation planner + evidence proof graph")
+    proof_graph_results = run_local_planner_and_proof_graph(repo, successful_output_dirs)
+
     print("[+] running knowledge distillation")
     distillation_run = run_distillation(repo, distillation_snapshot_path, distillation_guard_path)
 
@@ -269,6 +334,7 @@ def main() -> None:
         "pipeline_results": pipeline_results,
         "training_run": training_run,
         "policy_results": policy_results,
+        "proof_graph_results": proof_graph_results,
         "distillation_run": distillation_run,
         "training_report_path": training_report_path,
         "distillation_snapshot_path": distillation_snapshot_path,
@@ -292,6 +358,18 @@ def main() -> None:
         }
         for p in policy_ok[:10]
     ]
+
+    proof_ok = [p for p in proof_graph_results if p.get("ok")]
+    final_report["summary"]["proof_graph_completed"] = len(proof_ok)
+    final_report["summary"]["proof_graph_failed"] = len(proof_graph_results) - len(proof_ok)
+    final_report["summary"]["avg_proof_score"] = round(
+        sum((p.get("top_proof_score") or 0.0) for p in proof_ok) / len(proof_ok),
+        3
+    ) if proof_ok else 0.0
+    final_report["summary"]["avg_disclosure_readiness"] = round(
+        sum((p.get("top_disclosure_readiness") or 0.0) for p in proof_ok) / len(proof_ok),
+        3
+    ) if proof_ok else 0.0
 
     save_json(args.out, final_report)
 
