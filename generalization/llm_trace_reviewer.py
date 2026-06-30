@@ -34,6 +34,18 @@ def summarize_trace(t):
     if "loadUrl" in sink_terms or "addJavascriptInterface" in sink_terms:
         risk_tags.append("webview_surface")
 
+    entry_l = (entry or "").lower()
+    if "share" in entry_l:
+        risk_tags.append("share_receiver_surface")
+    if "login" in entry_l or "signup" in entry_l or "auth" in entry_l:
+        risk_tags.append("auth_or_account_surface")
+    if "customtab" in entry_l or "custom_tab" in entry_l:
+        risk_tags.append("custom_tab_surface")
+    if "deeplink" in entry_l:
+        risk_tags.append("deeplink_router_surface")
+    if "rootactivity" in entry_l:
+        risk_tags.append("root_router_surface")
+
     if {"external_intent_input","uri_parameter_parsing","uri_reconstruction_or_forwarding"} & set(risk_tags):
         triage="needs_human_or_llm_trace_review"
     else:
