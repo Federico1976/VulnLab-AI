@@ -55,8 +55,19 @@ def main():
         gen=out_dir/"generalization"
 
         proof=gen/"evidence_proof_graph_v1.json"
-        runtime=out_dir/"runtime_evidence_normalized_v1.json"
-        closure=out_dir/"research_closure_report_v1.json"
+        runtime_candidates = [
+            out_dir/"runtime_evidence_normalized_v1.json",
+            out_dir/"generalization"/"runtime_evidence_normalized_v1.json",
+            Path("output/bugbounty/opera_android/opera_runtime_evidence_normalized_v1.json"),
+        ]
+        runtime = next((x for x in runtime_candidates if x.exists()), runtime_candidates[0])
+
+        closure_candidates = [
+            out_dir/"research_closure_report_v1.json",
+            out_dir/"generalization"/"research_closure_report_v1.json",
+            Path("output/bugbounty/opera_android/opera_research_closure_report_v1.json"),
+        ]
+        closure = closure_candidates[0]
 
         # Generic closure is created only if normalized runtime exists.
         # If not, preserve non-reportable candidate state.
