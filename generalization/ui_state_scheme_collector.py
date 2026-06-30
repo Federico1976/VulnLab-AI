@@ -48,24 +48,31 @@ def classify_scheme(command: str) -> str:
     return "custom_or_unknown"
 
 
-def interpret(command, before, after, log):
+def interpret(command, before, after, log, package=""):
     scheme = classify_scheme(command)
+    package = (package or "").lower()
     text = (json.dumps(after) + "\n" + log).lower()
 
     evidence = []
     counters = []
 
-    if "com.opera.browser" in text:
-        evidence.append("opera_process_or_activity_observed")
+    if package and package.lower() in text:
+        evidence.append("target_package_activity_observed")
 
-    if "mainlauncheractivity" in text:
-        evidence.append("main_launcher_activity_seen")
+    if "resumedactivity" in text or "mresumedactivity" in text:
+        evidence.append("activity_transition_observed")
 
-    if "welcomeactivity" in text:
-        counters.append("onboarding_or_welcome_intercepted")
+    if "splashactivity" in text:
+        evidence.append("splash_entrypoint_observed")
 
-    if "chromium" in text or "networksecurityconfig" in text:
-        evidence.append("browser_runtime_stack_seen")
+    if "globalnavactivity" in text:
+        evidence.append("internal_navigation_activity_observed")
+
+    if "marketingoptinactivity" in text:
+        evidence.append("onboarding_or_marketing_gate_observed")
+
+    if "chromium" in text or "networksecurityconfig" in text or "webview" in text:
+        evidence.append("browser_or_webview_runtime_stack_seen")
 
     if "securityexception" in text or "permission denial" in text or "denied" in text:
         counters.append("platform_or_permission_guard_seen")
@@ -120,6 +127,8 @@ def main():
     ap.add_argument("--proof-graph", required=True)
     ap.add_argument("--limit", type=int, default=6)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--package", default="")
+    ap.add_argument("--log-keywords", default="")
     ap.add_argument("--sleep", type=float, default=2.0)
     args = ap.parse_args()
 
@@ -140,10 +149,10 @@ def main():
         after = current_state()
 
         log = sh(
-            "adb logcat -d -t 400 | grep -iE 'opera|activity|intent|url|uri|scheme|navigation|chromium|webview|denied|blocked|exception|security|file|content|about' | tail -160"
+            "adb logcat -d -t 400 | grep -iE '" + ((args.package + "|") if args.package else "") + ((args.log_keywords + "|") if args.log_keywords else "") + "activity|intent|url|uri|scheme|navigation|chromium|webview|denied|blocked|exception|security|file|content|about|oauth|deeplink|firebase|braze|qualtrics' | tail -160"
         )
 
-        interp = interpret(cmd, before, after, log.get("stdout", ""))
+        interp = interpret(cmd, before, after, log.get("stdout", ""), args.package)
 
         results.append({
             "validation_id": v.get("validation_id"),
