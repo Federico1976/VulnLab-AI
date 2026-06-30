@@ -112,20 +112,60 @@ if __name__=="__main__":
     main()
 
 
+
+
 def run_ollama_llm_reasoning(packet_path: str, output_path: str, model: str = "llama3.2:3b"):
     """
-    Stable runner API used by complete APK research agent.
-    Wraps the existing ollama_llm_reasoner implementation.
+    Stable API used by complete APK research agent.
+    Dispatches to the real implementation available in this module.
     """
-    try:
-        return ollama_llm_reasoner(
-            packet_path=packet_path,
-            output_path=output_path,
-            model=model,
-        )
-    except TypeError:
-        return ollama_llm_reasoner(
-            packet_path,
-            output_path,
-            model,
-        )
+    import json
+    from pathlib import Path
+
+    candidates = [
+        "main_reason",
+        "run_reasoning",
+        "reason",
+        "run",
+        "main",
+    ]
+
+    for name in candidates:
+        fn = globals().get(name)
+        if callable(fn):
+            try:
+                return fn(packet_path=packet_path, output_path=output_path, model=model)
+            except TypeError:
+                try:
+                    return fn(packet_path, output_path, model)
+                except TypeError:
+                    try:
+                        return fn(packet_path, output_path)
+                    except TypeError:
+                        pass
+
+    # deterministic safe fallback if implementation function name changed
+    out = {
+        "schema": "ollama_llm_reasoning_v1",
+        "backend": "deterministic_wrapper_fallback",
+        "reasoning_mode": "safe_fallback",
+        "fallback_used": True,
+        "finding_allowed": False,
+        "candidate_only": True,
+        "report_allowed": False,
+        "next_best_experiment": "method_level_trace_review",
+        "missing_proof": [
+            "runtime_marker_propagation",
+            "ordered_source_to_sink_chain",
+            "sanitizer_decision",
+            "impact_proof"
+        ],
+        "counter_evidence": [
+            "no confirmed runtime propagation",
+            "no concrete exploitability proof"
+        ]
+    }
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_text(json.dumps(out, indent=2, ensure_ascii=False))
+    return out

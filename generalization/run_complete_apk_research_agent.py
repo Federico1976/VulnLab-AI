@@ -172,8 +172,11 @@ def main():
 
         if causal_graph.exists():
             steps.append(sh(
-                f"PYTHONPATH=$PWD python3 -m generalization.causal_graph_llm_packet_v1 "
+                f"PYTHONPATH=$PWD python3 -m generalization.causal_graph_llm_packet "
                 f"--causal-graph {causal_graph} "
+                f"--llm-review {llm_trace_review} "
+                f"--target '{item.get('target', 'APK Target')}' "
+                f"--package {args.package or item.get('package', '')} "
                 f"--out {causal_llm_packet}"
             ))
 
