@@ -138,6 +138,17 @@ def main():
 
         llm_trace_review = out_dir/"llm_trace_reviewer_v1.json"
         static_trace = out_dir/"static_trace_v1.json"
+        causal_graph = out_dir/"universal_causal_graph_v1.json"
+
+        if static_trace.exists():
+            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.universal_causal_graph_builder "
+                f"--static-trace {static_trace} "
+                f"{probe_arg} "
+                f"--out {causal_graph}"
+            ))
+
         if static_trace.exists() and args.package:
             probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""
             steps.append(sh(
