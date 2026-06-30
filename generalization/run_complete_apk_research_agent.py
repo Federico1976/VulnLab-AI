@@ -84,6 +84,18 @@ def main():
                 f"--out {closure}"
             ))
 
+        source_to_sink = out_dir/"source_to_sink_paths_v1.json"
+        local_plan = gen/"local_investigation_plan_v1.json"
+        research_objects = out_dir/"phase_b"/"merged_research_objects.json"
+
+        if local_plan.exists() and research_objects.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_causal_path_resolver "
+                f"--local-plan {local_plan} "
+                f"--research-objects {research_objects} "
+                f"--out {source_to_sink}"
+            ))
+
         if closure.exists():
             closure_reports.append(str(closure))
             steps.append(sh(
