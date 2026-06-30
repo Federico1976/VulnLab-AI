@@ -102,6 +102,17 @@ def main():
         source_to_sink_results = out_dir/"source_to_sink_probe_results_v1.json"
         source_to_sink_interpretation = out_dir/"source_to_sink_probe_interpretation_v1.json"
 
+        static_trace = out_dir/"static_trace_v1.json"
+        code_dir = out_dir/"code"/"decompiled"/"sources"
+
+        if source_to_sink.exists() and code_dir.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.static_trace_resolver "
+                f"--paths {source_to_sink} "
+                f"--code-dir {code_dir} "
+                f"--out {static_trace}"
+            ))
+
         if source_to_sink.exists() and args.package:
             steps.append(sh(
                 f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_instrumentation_planner "
