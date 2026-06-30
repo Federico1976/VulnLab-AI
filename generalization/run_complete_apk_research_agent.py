@@ -54,24 +54,29 @@ def main():
         out_dir=Path(item["output_dir"])
         gen=out_dir/"generalization"
 
-        proof=gen/"evidence_proof_graph_v1.json"
+        proof_candidates = [
+            gen/"evidence_proof_graph_v1.json",
+            out_dir/"evidence_proof_graph_v1.json",
+        ]
+        proof = next((x for x in proof_candidates if x.exists()), proof_candidates[0])
+
         runtime_candidates = [
             out_dir/"runtime_evidence_normalized_v1.json",
-            out_dir/"generalization"/"runtime_evidence_normalized_v1.json",
+            gen/"runtime_evidence_normalized_v1.json",
             Path("output/bugbounty/opera_android/opera_runtime_evidence_normalized_v1.json"),
         ]
         runtime = next((x for x in runtime_candidates if x.exists()), runtime_candidates[0])
 
         closure_candidates = [
             out_dir/"research_closure_report_v1.json",
-            out_dir/"generalization"/"research_closure_report_v1.json",
+            gen/"research_closure_report_v1.json",
             Path("output/bugbounty/opera_android/opera_research_closure_report_v1.json"),
         ]
-        closure = closure_candidates[0]
+        closure = next((x for x in closure_candidates if x.exists()), closure_candidates[0])
 
         # Generic closure is created only if normalized runtime exists.
         # If not, preserve non-reportable candidate state.
-        if proof.exists() and runtime.exists():
+        if proof.exists() and runtime.exists() and not closure.exists():
             steps.append(sh(
                 f"PYTHONPATH=$PWD python3 -m generalization.opera_research_closure_report "
                 f"--proof {proof} "
