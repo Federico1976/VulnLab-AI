@@ -1,17 +1,245 @@
-#!/usr/bin/env python3\nfrom __future__ import annotations\nimport json, subprocess, sys, time\nfrom pathlib import Path\nfrom generalization.ollama_llm_reasoner import run_ollama_llm_reasoning\n\ndef sh(cmd):\n    r=subprocess.run(cmd, shell=True, text=True, capture_output=True)\n    return {"cmd":cmd,"ok":r.returncode==0,"stdout":r.stdout[-6000:],"stderr":r.stderr[-6000:]}\n\ndef load(p):\n    p=Path(p)\n    return json.loads(p.read_text()) if p.exists() else {}\n\ndef save(p,d):\n    p=Path(p); p.parent.mkdir(parents=True, exist_ok=True)\n    p.write_text(json.dumps(d,indent=2,ensure_ascii=False))\n\ndef main():\n    import argparse\n    ap=argparse.ArgumentParser(description="Complete APK Research Agent v1")\n    ap.add_argument("--manifest", required=True)\n    ap.add_argument("--cognitive-graph", default="output/universal_cognitive_graph_v2.json")\n    ap.add_argument("--external-knowledge", default="output/generalization/external_knowledge_distilled_v1.json")\n    ap.add_argument("--campaign-name", required=True)\n    ap.add_argument("--out", required=True)\n    ap.add_argument("--limit", type=int, default=1)\n    ap.add_argument("--run-dynamic-probes", action="store_true")\n    ap.add_argument("--package", default="")\n    args=ap.parse_args()\n\n    started=time.time()\n\n    orch_out=f"output/generalization/{args.campaign_name}_orchestrated_report.json"\n\n    steps=[]\n\n    steps.append(sh(\n        f"PYTHONPATH=$PWD python3 -m generalization.campaign_orchestrator_v1 "\n        f"--manifest {args.manifest} "\n        f"--cognitive-graph {args.cognitive_graph} "\n        f"--campaign-name {args.campaign_name} "\n        f"--limit {args.limit} "\n        f"--external-knowledge {args.external_knowledge} "\n        f"--policy-budget 10 "\n        f"--out {orch_out}"\n    ))\n\n    orch=load(orch_out)\n    manifest=load(args.manifest)\n    prepared=[x for x in manifest if x.get("status")=="prepared"]\n\n    episode_updates=[]\n    closure_reports=[]\n\n    for item in prepared[:args.limit]:\n        out_dir=Path(item["output_dir"])\n        gen=out_dir/"generalization"\n\n        proof_candidates = [\n            gen/"evidence_proof_graph_v1.json",\n            out_dir/"evidence_proof_graph_v1.json",\n        ]\n        proof = next((x for x in proof_candidates if x.exists()), proof_candidates[0])\n\n        runtime_candidates = [\n            out_dir/"runtime_evidence_normalized_v1.json",\n            gen/"runtime_evidence_normalized_v1.json",\n            Path("output/bugbounty/opera_android/opera_runtime_evidence_normalized_v1.json"),\n        ]\n        runtime = next((x for x in runtime_candidates if x.exists()), runtime_candidates[0])\n\n        closure_candidates = [\n            out_dir/"research_closure_report_v1.json",\n            gen/"research_closure_report_v1.json",\n            Path("output/bugbounty/opera_android/opera_research_closure_report_v1.json"),\n        ]\n        closure = next((x for x in closure_candidates if x.exists()), closure_candidates[0])\n\n        # Generic closure is created only if normalized runtime exists.\n        # If not, preserve non-reportable candidate state.\n        if proof.exists() and runtime.exists() and not closure.exists():\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.opera_research_closure_report "\n                f"--proof {proof} "\n                f"--runtime {runtime} "\n                f"--out {closure}"\n            ))\n\n        source_to_sink = out_dir/"source_to_sink_paths_v1.json"\n        local_plan = gen/"local_investigation_plan_v1.json"\n        research_objects = out_dir/"phase_b"/"merged_research_objects.json"\n\n        if local_plan.exists() and research_objects.exists():\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_causal_path_resolver "\n                f"--local-plan {local_plan} "\n                f"--research-objects {research_objects} "\n                f"--out {source_to_sink}"\n            ))\n\n        source_to_sink_plan = out_dir/"runtime_source_to_sink_plan_v1.json"\n        source_to_sink_results = out_dir/"source_to_sink_probe_results_v1.json"\n        source_to_sink_interpretation = out_dir/"source_to_sink_probe_interpretation_v1.json"\n\n        static_trace = out_dir/"static_trace_v1.json"\n        code_dir = out_dir/"code"/"decompiled"/"sources"\n\n        if source_to_sink.exists() and code_dir.exists():\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.static_trace_resolver "\n                f"--paths {source_to_sink} "\n                f"--code-dir {code_dir} "\n                f"--out {static_trace}"\n            ))\n\n        if source_to_sink.exists() and args.package:\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_instrumentation_planner "\n                f"--paths {source_to_sink} "\n                f"--package {args.package} "\n                f"--out {source_to_sink_plan}"\n            ))\n\n        if args.run_dynamic_probes and source_to_sink_plan.exists() and args.package:\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_probe_executor "\n                f"--plan {source_to_sink_plan} "\n                f"--package {args.package} "\n                f"--out {source_to_sink_results}"\n            ))\n            if source_to_sink_results.exists():\n                steps.append(sh(\n                    f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_probe_interpreter "\n                    f"--results {source_to_sink_results} "\n                    f"--package {args.package} "\n                    f"--out {source_to_sink_interpretation}"\n                ))\n\n        llm_trace_review = out_dir/"llm_trace_reviewer_v1.json"\n        static_trace = out_dir/"static_trace_v1.json"\n        causal_graph = out_dir/"universal_causal_graph_v1.json"\n\n        if static_trace.exists():\n            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.universal_causal_graph_builder "\n                f"--static-trace {static_trace} "\n                f"{probe_arg} "\n                f"--out {causal_graph}"\n            ))\n\n        if static_trace.exists() and args.package:\n            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.llm_trace_reviewer "\n                f"--static-trace {static_trace} "\n                f"{probe_arg} "\n                f"--target {item.get('target','APK Target')!r} "\n                f"--package {args.package} "\n                f"--out {llm_trace_review}"\n            ))\n\n        causal_llm_packet = out_dir/"causal_graph_llm_packet_v1.json"\
-    # LLM reasoning over causal graph packet
-    try:
-        causal_packet_path = output_dir / "causal_graph_llm_packet_v1.json"
-        ollama_reasoning_path = output_dir / "ollama_llm_reasoning_v1.json"
+#!/usr/bin/env python3
+from __future__ import annotations
 
-        if causal_packet_path.exists():
-            ollama_result = run_ollama_llm_reasoning(
-                packet_path=str(causal_packet_path),
-                output_path=str(ollama_reasoning_path),
-            )
-            artifacts["ollama_llm_reasoning_v1"] = str(ollama_reasoning_path)
-        else:
-            artifacts["ollama_llm_reasoning_v1"] = None
-    except Exception as e:
-        print(f"[WARN] Ollama LLM reasoning stage failed safely: {e}")
-n        causal_graph = out_dir/"universal_causal_graph_v1.json"\n        if causal_graph.exists() and args.package:\n            review_arg = f"--llm-review {llm_trace_review}" if llm_trace_review.exists() else ""\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.causal_graph_llm_packet "\n                f"--causal-graph {causal_graph} "\n                f"{review_arg} "\n                f"--target {item.get('target','APK Target')!r} "\n                f"--package {args.package} "\n                f"--out {causal_llm_packet}"\n            ))\n\n        if closure.exists():\n            closure_reports.append(str(closure))\n            steps.append(sh(\n                f"PYTHONPATH=$PWD python3 -m generalization.research_episode_memory_writer "\n                f"--closure {closure} "\n                f"--memory output/generalization/research_episode_memory_v1.json "\n                f"--out output/generalization/research_episode_memory_v1.json"\n            ))\n            episode_updates.append(str(closure))\n\n    final={\n        "schema_version":"complete_apk_research_agent_run.v1",\n        "created_at":int(time.time()),\n        "campaign_name":args.campaign_name,\n        "manifest":args.manifest,\n        "orchestrator_report":orch_out,\n        "summary":{\n            "apk_count":len(prepared[:args.limit]),\n            "orchestrator_ok":steps[0]["ok"] if steps else False,\n            "pipeline_completed":orch.get("summary",{}).get("pipeline_completed"),\n            "training_completed":orch.get("summary",{}).get("training_completed"),\n            "policy_completed":orch.get("summary",{}).get("policy_completed"),\n            "proof_graph_completed":orch.get("summary",{}).get("proof_graph_completed"),\n            "closure_reports":len(closure_reports),\n            "episode_updates":len(episode_updates),\n            "dynamic_source_to_sink_enabled":args.run_dynamic_probes,\n            "candidate_only":True,\n            "finding_allowed":False,\n            "elapsed_sec":round(time.time()-started,2)\n        },\n        "steps":steps,\n        "closure_reports":closure_reports,\n        "episode_updates":episode_updates,\n        "orchestrator_summary":orch.get("summary",{})\n    }\n\n    save(args.out, final)\n    print(json.dumps(final["summary"],indent=2,ensure_ascii=False))\n\nif __name__=="__main__":\n    main()\n
+import argparse
+import json
+import subprocess
+import time
+from pathlib import Path
+
+from generalization.ollama_llm_reasoner import run_ollama_llm_reasoning
+
+
+def sh(cmd: str) -> dict:
+    r = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+    return {
+        "cmd": cmd,
+        "ok": r.returncode == 0,
+        "returncode": r.returncode,
+        "stdout": r.stdout[-6000:],
+        "stderr": r.stderr[-6000:],
+    }
+
+
+def load(path):
+    p = Path(path)
+    if not p.exists():
+        return {}
+    return json.loads(p.read_text())
+
+
+def save(path, data):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Complete APK Research Agent v1")
+    ap.add_argument("--manifest", required=True)
+    ap.add_argument("--cognitive-graph", default="output/universal_cognitive_graph_v2.json")
+    ap.add_argument("--external-knowledge", default="output/generalization/external_knowledge_distilled_v1.json")
+    ap.add_argument("--campaign-name", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--limit", type=int, default=1)
+    ap.add_argument("--run-dynamic-probes", action="store_true")
+    ap.add_argument("--package", default="")
+    args = ap.parse_args()
+
+    started = time.time()
+    steps = []
+    episode_updates = []
+    closure_reports = []
+
+    orch_out = f"output/generalization/{args.campaign_name}_orchestrated_report.json"
+
+    steps.append(sh(
+        f"PYTHONPATH=$PWD python3 -m generalization.campaign_orchestrator_v1 "
+        f"--manifest {args.manifest} "
+        f"--cognitive-graph {args.cognitive_graph} "
+        f"--campaign-name {args.campaign_name} "
+        f"--limit {args.limit} "
+        f"--external-knowledge {args.external_knowledge} "
+        f"--policy-budget 10 "
+        f"--out {orch_out}"
+    ))
+
+    manifest = load(args.manifest)
+    prepared = [x for x in manifest if x.get("status") == "prepared"]
+
+    for item in prepared[:args.limit]:
+        out_dir = Path(item["output_dir"])
+        gen = out_dir / "generalization"
+        gen.mkdir(parents=True, exist_ok=True)
+
+        proof_candidates = [
+            gen / "evidence_proof_graph_v1.json",
+            out_dir / "evidence_proof_graph_v1.json",
+        ]
+        proof = next((x for x in proof_candidates if x.exists()), proof_candidates[0])
+
+        runtime_candidates = [
+            out_dir / "runtime_evidence_normalized_v1.json",
+            gen / "runtime_evidence_normalized_v1.json",
+        ]
+        runtime = next((x for x in runtime_candidates if x.exists()), runtime_candidates[0])
+
+        closure = out_dir / "research_closure_report_v1.json"
+
+        if proof.exists() and runtime.exists() and not closure.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.opera_research_closure_report "
+                f"--proof {proof} "
+                f"--runtime {runtime} "
+                f"--out {closure}"
+            ))
+
+        source_to_sink = out_dir / "source_to_sink_paths_v1.json"
+        local_plan = gen / "local_investigation_plan_v1.json"
+        research_objects = out_dir / "phase_b" / "merged_research_objects.json"
+
+        if local_plan.exists() and research_objects.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_causal_path_resolver "
+                f"--local-plan {local_plan} "
+                f"--research-objects {research_objects} "
+                f"--out {source_to_sink}"
+            ))
+
+        source_to_sink_plan = out_dir / "runtime_source_to_sink_plan_v1.json"
+        source_to_sink_results = out_dir / "source_to_sink_probe_results_v1.json"
+        source_to_sink_interpretation = out_dir / "source_to_sink_probe_interpretation_v1.json"
+
+        static_trace = out_dir / "static_trace_v1.json"
+        code_dir = out_dir / "code" / "decompiled" / "sources"
+
+        if source_to_sink.exists() and code_dir.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.static_trace_resolver "
+                f"--paths {source_to_sink} "
+                f"--code-dir {code_dir} "
+                f"--out {static_trace}"
+            ))
+
+        if source_to_sink.exists() and args.package:
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_instrumentation_planner "
+                f"--paths {source_to_sink} "
+                f"--package {args.package} "
+                f"--out {source_to_sink_plan}"
+            ))
+
+        if args.run_dynamic_probes and source_to_sink_plan.exists() and args.package:
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.runtime_source_to_sink_probe_executor "
+                f"--plan {source_to_sink_plan} "
+                f"--package {args.package} "
+                f"--out {source_to_sink_results}"
+            ))
+
+            if source_to_sink_results.exists():
+                steps.append(sh(
+                    f"PYTHONPATH=$PWD python3 -m generalization.source_to_sink_probe_interpreter "
+                    f"--results {source_to_sink_results} "
+                    f"--package {args.package} "
+                    f"--out {source_to_sink_interpretation}"
+                ))
+
+        llm_trace_review = out_dir / "llm_trace_reviewer_v1.json"
+        causal_graph = out_dir / "universal_causal_graph_v1.json"
+
+        if static_trace.exists():
+            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.universal_causal_graph_builder "
+                f"--static-trace {static_trace} "
+                f"{probe_arg} "
+                f"--out {causal_graph}"
+            ))
+
+        if static_trace.exists() and args.package:
+            probe_arg = f"--probe-interpretation {source_to_sink_interpretation}" if source_to_sink_interpretation.exists() else ""
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.llm_trace_reviewer "
+                f"--static-trace {static_trace} "
+                f"{probe_arg} "
+                f"--target '{item.get('target', 'APK Target')}' "
+                f"--package {args.package} "
+                f"--out {llm_trace_review}"
+            ))
+
+        causal_llm_packet = out_dir / "causal_graph_llm_packet_v1.json"
+
+        if causal_graph.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.causal_graph_llm_packet_v1 "
+                f"--causal-graph {causal_graph} "
+                f"--out {causal_llm_packet}"
+            ))
+
+        ollama_reasoning = out_dir / "ollama_llm_reasoning_v1.json"
+
+        if causal_llm_packet.exists():
+            try:
+                run_ollama_llm_reasoning(
+                    packet_path=str(causal_llm_packet),
+                    output_path=str(ollama_reasoning),
+                )
+            except Exception as e:
+                fallback = {
+                    "schema": "ollama_llm_reasoning_v1",
+                    "backend": "runner_safe_fallback",
+                    "error": str(e),
+                    "finding_allowed": False,
+                    "candidate_only": True,
+                    "report_allowed": False,
+                    "next_best_experiment": "method_level_trace_review",
+                    "missing_proof": [
+                        "runtime_marker_propagation",
+                        "ordered_source_to_sink_chain",
+                        "sanitizer_decision",
+                        "impact_proof"
+                    ],
+                    "counter_evidence": [
+                        "no confirmed runtime propagation",
+                        "no concrete exploitability proof"
+                    ]
+                }
+                save(ollama_reasoning, fallback)
+
+        if closure.exists():
+            closure_reports.append(str(closure))
+
+        episode = out_dir / "research_episode_memory_v1.json"
+        if closure.exists():
+            steps.append(sh(
+                f"PYTHONPATH=$PWD python3 -m generalization.research_episode_memory_writer "
+                f"--closure {closure} "
+                f"--out {episode}"
+            ))
+
+        if episode.exists():
+            episode_updates.append(str(episode))
+
+    final = {
+        "schema": "complete_apk_research_agent_v1",
+        "campaign": args.campaign_name,
+        "manifest": args.manifest,
+        "limit": args.limit,
+        "duration_seconds": round(time.time() - started, 2),
+        "guardrails": {
+            "candidate_only_default": True,
+            "finding_allowed_requires_concrete_proof": True,
+            "dynamic_probes_require_explicit_flag": True,
+        },
+        "steps": steps,
+        "closure_reports": closure_reports,
+        "episode_updates": episode_updates,
+    }
+
+    save(args.out, final)
+    print(json.dumps(final, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

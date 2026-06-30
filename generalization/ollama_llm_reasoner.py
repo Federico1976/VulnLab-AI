@@ -110,3 +110,22 @@ PACKET:
 
 if __name__=="__main__":
     main()
+
+
+def run_ollama_llm_reasoning(packet_path: str, output_path: str, model: str = "llama3.2:3b"):
+    """
+    Stable runner API used by complete APK research agent.
+    Wraps the existing ollama_llm_reasoner implementation.
+    """
+    try:
+        return ollama_llm_reasoner(
+            packet_path=packet_path,
+            output_path=output_path,
+            model=model,
+        )
+    except TypeError:
+        return ollama_llm_reasoner(
+            packet_path,
+            output_path,
+            model,
+        )
