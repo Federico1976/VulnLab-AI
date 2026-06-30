@@ -119,6 +119,7 @@ def infer_source_to_sink_path(ro: Dict[str, Any], target_shape: str) -> List[Dic
 def required_commands(ro: Dict[str, Any]) -> List[str]:
     raw = get_raw(ro)
     component = raw.get("component_name")
+    package = raw.get("package") or ro.get("package") or ""
     schemes = raw.get("schemes", [])
     paths = raw.get("paths", [])
     actions = raw.get("actions", [])
@@ -128,27 +129,27 @@ def required_commands(ro: Dict[str, Any]) -> List[str]:
     if "android.intent.action.VIEW" in actions and component:
         for scheme in schemes[:6]:
             if scheme in ("http", "https"):
-                cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.VIEW -d '{scheme}://example.com/'")
+                cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.VIEW -d '{scheme}://example.com/'")
             elif scheme == "file":
-                cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.VIEW -d 'file:///sdcard/Download/vulnlab_safe_test.html'")
+                cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.VIEW -d 'file:///sdcard/Download/vulnlab_safe_test.html'")
             elif scheme == "content":
-                cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.VIEW -d 'content://com.opera.browser.safe.test/item'")
+                cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.VIEW -d 'content://vulnlab.safe.test/item'")
             elif scheme == "about":
-                cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.VIEW -d 'about:blank'")
+                cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.VIEW -d 'about:blank'")
             else:
-                cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.VIEW -d '{scheme}:vulnlab-safe-test'")
+                cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.VIEW -d '{scheme}:vulnlab-safe-test'")
 
         for path in paths[:3]:
             cmds.append(f"# Path-focused benign probe: {path}")
 
     elif "android.intent.action.PROCESS_TEXT" in actions and component:
-        cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.PROCESS_TEXT --es android.intent.extra.PROCESS_TEXT 'vulnlab safe query'")
+        cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.PROCESS_TEXT --es android.intent.extra.PROCESS_TEXT 'vulnlab safe query'")
 
     elif "android.intent.action.WEB_SEARCH" in actions and component:
-        cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.WEB_SEARCH --es query 'vulnlab safe query'")
+        cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.WEB_SEARCH --es query 'vulnlab safe query'")
 
     elif "android.intent.action.SEND" in actions and component:
-        cmds.append(f"adb shell am start -n com.opera.browser/{component} -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'https://example.com/'")
+        cmds.append(f"adb shell am start -n {package}/{component} -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'https://example.com/'")
 
     return cmds
 
