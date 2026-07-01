@@ -145,8 +145,8 @@ def build_evidence_story(manifest_path):
             "state": causal_state or "unknown",
             "score": causal_score,
             "score_level": score_level(causal_score),
-            "nodes": causal_graph.get("nodes"),
-            "edges": causal_graph.get("edges"),
+            "nodes": len(causal_graph.get("nodes", [])) if isinstance(causal_graph.get("nodes"), list) else causal_graph.get("nodes"),
+            "edges": len(causal_graph.get("edges", [])) if isinstance(causal_graph.get("edges"), list) else causal_graph.get("edges"),
         },
         {
             "stage": "llm_review",

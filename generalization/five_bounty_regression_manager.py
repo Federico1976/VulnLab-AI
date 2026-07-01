@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from generalization.output_layout_resolver import resolve_manifest
+from generalization.evidence_fusion_engine import build_evidence_story
 
 
 TARGETS = [
@@ -81,6 +82,19 @@ def summarize_target(t, report_path):
     layout = resolve_manifest(t["manifest"])
     layout_item = layout.get("items", [{}])[0] if layout.get("items") else {}
     artifacts = layout_item.get("artifacts", {})
+
+    # Ensure evidence_story exists as the central cognitive artifact.
+    if not artifacts.get("evidence_story"):
+        try:
+            story = build_evidence_story(t["manifest"])
+            out_story = Path(t["output_dir"]) / "evidence_story_v1.json"
+            save(out_story, story)
+
+            layout = resolve_manifest(t["manifest"])
+            layout_item = layout.get("items", [{}])[0] if layout.get("items") else {}
+            artifacts = layout_item.get("artifacts", {})
+        except Exception:
+            pass
 
     causal = load(artifacts.get("causal_graph"))
     llm = load(artifacts.get("ollama_reasoning"))
