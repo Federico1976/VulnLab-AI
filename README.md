@@ -55,4 +55,3 @@ global_score=1.0
 ready_apk_count=5/5
 all_ready_for_heterogeneous_apk_campaign=true
 
-See: PHASE_C_FINAL_READINESS.md
