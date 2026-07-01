@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from generalization.ollama_llm_reasoner import run_ollama_llm_reasoning
+from generalization.evidence_fusion_engine import build_evidence_story
 
 
 def sh(cmd: str) -> dict:
@@ -184,19 +185,40 @@ def main():
 
         if causal_llm_packet.exists():
             try:
-                run_ollama_llm_reasoning(
+                llm_out = run_ollama_llm_reasoning(
                     packet_path=str(causal_llm_packet),
                     output_path=str(ollama_reasoning),
                 )
+                steps.append({
+                    "cmd": "internal:run_ollama_llm_reasoning",
+                    "ok": True,
+                    "returncode": 0,
+                    "stdout": json.dumps({
+                        "out": str(ollama_reasoning),
+                        "backend": llm_out.get("backend"),
+                        "reasoning_mode": llm_out.get("reasoning_mode"),
+                        "fallback_used": llm_out.get("fallback_used"),
+                        "finding_allowed": llm_out.get("finding_allowed"),
+                        "candidate_only": llm_out.get("candidate_only"),
+                        "next_best_experiment": llm_out.get("next_best_experiment"),
+                    }, indent=2, ensure_ascii=False),
+                    "stderr": ""
+                })
             except Exception as e:
                 fallback = {
                     "schema": "ollama_llm_reasoning_v1",
                     "backend": "runner_safe_fallback",
+                    "reasoning_mode": "safe_fallback",
+                    "fallback_used": True,
                     "error": str(e),
                     "finding_allowed": False,
                     "candidate_only": True,
                     "report_allowed": False,
-                    "next_best_experiment": "method_level_trace_review",
+                    "next_best_experiment": {
+                        "step": "method_level_trace_review",
+                        "target": None,
+                        "why": "Runner-level fallback after Ollama reasoning exception."
+                    },
                     "missing_proof": [
                         "runtime_marker_propagation",
                         "ordered_source_to_sink_chain",
@@ -209,6 +231,13 @@ def main():
                     ]
                 }
                 save(ollama_reasoning, fallback)
+                steps.append({
+                    "cmd": "internal:run_ollama_llm_reasoning",
+                    "ok": False,
+                    "returncode": 1,
+                    "stdout": json.dumps({"out": str(ollama_reasoning)}, indent=2),
+                    "stderr": str(e)
+                })
 
         if closure.exists():
             closure_reports.append(str(closure))
@@ -220,6 +249,35 @@ def main():
                 f"--closure {closure} "
                 f"--out {episode}"
             ))
+
+        evidence_story = out_dir / "evidence_story_v1.json"
+        try:
+            story = build_evidence_story(args.manifest)
+            save(evidence_story, story)
+            steps.append({
+                "cmd": "internal:build_evidence_story",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(evidence_story),
+                    "entry_component": story.get("entry_component"),
+                    "primary_causal_state": story.get("primary_causal_state"),
+                    "primary_causal_score": story.get("primary_causal_score"),
+                    "evidence_strength": story.get("evidence_strength"),
+                    "candidate_only": story.get("candidate_only"),
+                    "finding_allowed": story.get("finding_allowed"),
+                    "next_best_experiment": story.get("next_best_experiment"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:build_evidence_story",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
 
         if episode.exists():
             episode_updates.append(str(episode))

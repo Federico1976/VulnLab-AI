@@ -18,6 +18,7 @@ ARTIFACTS = {
     "ollama_reasoning": ["ollama_llm_reasoning_v1.json"],
     "closure_report": ["research_closure_report_v1.json"],
     "episode_memory": ["research_episode_memory_v1.json"],
+    "evidence_story": ["evidence_story_v1.json"],
     "local_plan": ["generalization/local_investigation_plan_v1.json"],
     "proof_graph": ["generalization/evidence_proof_graph_v1.json", "evidence_proof_graph_v1.json"],
     "research_objects": ["phase_b/merged_research_objects.json"],
