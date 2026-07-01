@@ -49,6 +49,38 @@ def deterministic_fallback(packet, source_packet, reason="ollama_unavailable_or_
     }
 
 
+
+
+def compress_packet_for_llm(packet):
+    """
+    Keep only high-signal fields for local small LLMs.
+    Prevents long causal graph packets from degrading JSON compliance.
+    """
+    top = packet.get("top_candidate", {})
+    return {
+        "schema_version": packet.get("schema_version"),
+        "target": packet.get("target"),
+        "package": packet.get("package"),
+        "top_candidate": {
+            "entry_component": top.get("entry_component"),
+            "causal_state": top.get("causal_state"),
+            "causal_score": top.get("causal_score"),
+            "missing_edges": top.get("missing_edges", []),
+            "node_kinds": top.get("node_kinds", []),
+            "edge_kinds": top.get("edge_kinds", []),
+        },
+        "guardrails": {
+            "finding_allowed": False,
+            "candidate_only": True,
+            "report_allowed": False,
+        },
+        "allowed_decision": {
+            "only_choose_next_best_experiment": True,
+            "never_claim_vulnerability_without_runtime_proof": True,
+        },
+    }
+
+
 def build_prompt(packet):
     return f"""
 You are a defensive Android APK security research reasoning layer.
@@ -65,9 +97,42 @@ Return strict JSON only with:
 schema, backend, reasoning_mode, fallback_used, finding_allowed, candidate_only,
 report_allowed, most_promising_path, next_best_experiment, missing_proof, counter_evidence.
 
-Packet:
-{json.dumps(packet, ensure_ascii=False)}
+Compressed packet:
+{json.dumps(compress_packet_for_llm(packet), ensure_ascii=False)}
 """.strip()
+
+
+def repair_json_control_chars(s):
+    """
+    Repair common local-LLM JSON issue: raw newlines inside quoted strings.
+    """
+    out = []
+    in_string = False
+    escape = False
+
+    for ch in s:
+        if escape:
+            out.append(ch)
+            escape = False
+            continue
+
+        if ch == "\\":
+            out.append(ch)
+            escape = True
+            continue
+
+        if ch == '"':
+            out.append(ch)
+            in_string = not in_string
+            continue
+
+        if in_string and ch in ("\n", "\r", "\t"):
+            out.append(" ")
+            continue
+
+        out.append(ch)
+
+    return "".join(out)
 
 
 def extract_json(text):
@@ -75,17 +140,68 @@ def extract_json(text):
     if not text:
         raise ValueError("empty ollama response")
 
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
-
     start = text.find("{")
     end = text.rfind("}")
     if start == -1 or end == -1 or end <= start:
         raise ValueError("no JSON object found in Ollama response")
 
-    return json.loads(text[start:end + 1])
+    candidate = text[start:end + 1]
+
+    try:
+        return json.loads(candidate, strict=False)
+    except Exception:
+        repaired = repair_json_control_chars(candidate)
+        return json.loads(repaired, strict=False)
+
+
+
+
+def salvage_reasoning_from_text(raw_text, packet, source_packet, backend):
+    """
+    Last-mile parser for local LLMs that emit almost-JSON.
+    Extracts useful intent but still enforces all safety guardrails.
+    """
+    top = packet.get("top_candidate", {})
+    text = raw_text or ""
+
+    missing = top.get("missing_edges", [])
+    if not missing:
+        missing = [
+            "runtime marker propagation",
+            "ordered method-level call chain",
+            "sanitizer decision",
+            "impact proof"
+        ]
+
+    next_step = "method_level_trace_review"
+    if "runtime" in text.lower() and "marker" in text.lower():
+        next_step = "runtime_marker_propagation_probe"
+    elif "sanitizer" in text.lower():
+        next_step = "sanitizer_decision_review"
+
+    return {
+        "schema": "ollama_llm_reasoning_v1",
+        "backend": backend,
+        "reasoning_mode": "llm_text_salvaged",
+        "fallback_used": False,
+        "source_packet": str(source_packet),
+        "most_promising_path": top.get("entry_component"),
+        "finding_allowed": False,
+        "candidate_only": True,
+        "report_allowed": False,
+        "next_best_experiment": {
+            "step": next_step,
+            "target": top.get("entry_component"),
+            "why": "LLM output was malformed JSON but agreed that concrete proof is still missing."
+        },
+        "missing_proof": missing,
+        "counter_evidence": [
+            "no confirmed runtime propagation",
+            "no concrete exploitability proof"
+        ],
+        "llm_json_parse_repaired": False,
+        "llm_text_salvaged": True
+    }
 
 
 def normalize_reasoning(obj, packet, source_packet, backend="ollama"):
@@ -130,11 +246,31 @@ def reason_from_packet(packet_path, output_path=None, model="llama3.2:3b", timeo
             timeout=timeout,
         )
 
+        raw_path = None
+        if output_path:
+            raw_path = str(Path(output_path).with_suffix(".raw.txt"))
+            Path(raw_path).write_text(
+                "STDOUT:\n" + r.stdout + "\n\nSTDERR:\n" + r.stderr,
+                encoding="utf-8",
+            )
+
         if r.returncode != 0:
             out = deterministic_fallback(packet, packet_path, reason=f"ollama_returncode_{r.returncode}")
+            out["raw_output_path"] = raw_path
         else:
-            parsed = extract_json(r.stdout)
-            out = normalize_reasoning(parsed, packet, packet_path, backend=f"ollama:{model}")
+            try:
+                parsed = extract_json(r.stdout)
+                out = normalize_reasoning(parsed, packet, packet_path, backend=f"ollama:{model}")
+                out["raw_output_path"] = raw_path
+            except Exception as e:
+                out = salvage_reasoning_from_text(
+                    raw_text=r.stdout,
+                    packet=packet,
+                    source_packet=packet_path,
+                    backend=f"ollama:{model}",
+                )
+                out["json_parse_error"] = str(e)
+                out["raw_output_path"] = raw_path
 
     except Exception as e:
         out = deterministic_fallback(packet, packet_path, reason=str(e))
