@@ -9,6 +9,13 @@ from pathlib import Path
 
 from generalization.ollama_llm_reasoner import run_ollama_llm_reasoning
 from generalization.evidence_fusion_engine import build_evidence_story
+from generalization.continuous_knowledge_trainer_v1 import train_from_apk_output
+from generalization.semantic_story_normalizer_v1 import normalize_apk_output
+from generalization.pattern_distillation_engine_v1 import run as run_pattern_distillation
+from generalization.strategy_memory_v2 import run as run_strategy_memory
+from generalization.hypothesis_prioritizer_v1 import run as run_hypothesis_prioritizer
+from generalization.universal_investigation_planner_v2 import run as run_universal_investigation_planner
+from generalization.reasoning_executor_v1 import run as run_reasoning_executor
 
 
 def sh(cmd: str) -> dict:
@@ -51,6 +58,13 @@ def main():
     steps = []
     episode_updates = []
     closure_reports = []
+    knowledge_memory_updates = []
+    semantic_story_updates = []
+    distilled_pattern_updates = []
+    strategy_memory_updates = []
+    hypothesis_priority_updates = []
+    universal_plan_updates = []
+    reasoning_executor_updates = []
 
     orch_out = f"output/generalization/{args.campaign_name}_orchestrated_report.json"
 
@@ -279,6 +293,197 @@ def main():
                 "stderr": str(e)
             })
 
+        semantic_story = out_dir / "semantic_story_v1.json"
+        try:
+            story_norm = normalize_apk_output(out_dir, semantic_story)
+            semantic_story_updates.append(str(semantic_story))
+            steps.append({
+                "cmd": "internal:semantic_story_normalizer_v1",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(semantic_story),
+                    "semantic_contract": story_norm.get("semantic_contract"),
+                    "guardrails": story_norm.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:semantic_story_normalizer_v1",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        knowledge_memory = Path("output/knowledge_pattern_memory_v1.json")
+        try:
+            memory = train_from_apk_output(
+                apk_output_dir=out_dir,
+                memory_path=knowledge_memory,
+            )
+            knowledge_memory_updates.append(str(knowledge_memory))
+            steps.append({
+                "cmd": "internal:continuous_knowledge_trainer_v1",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "memory": str(knowledge_memory),
+                    "episode_count": memory.get("stats", {}).get("episode_count"),
+                    "pattern_count": memory.get("stats", {}).get("pattern_count"),
+                    "guardrails": memory.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:continuous_knowledge_trainer_v1",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        distilled_patterns = Path("output/distilled_pattern_memory_v1.json")
+        try:
+            distilled = run_pattern_distillation(
+                input_memory=Path("output/knowledge_pattern_memory_v1.json"),
+                out=distilled_patterns,
+            )
+            distilled_pattern_updates.append(str(distilled_patterns))
+            steps.append({
+                "cmd": "internal:pattern_distillation_engine_v1",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(distilled_patterns),
+                    "stats": distilled.get("stats"),
+                    "guardrails": distilled.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:pattern_distillation_engine_v1",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        strategy_memory = Path("output/strategy_memory_v2.json")
+        try:
+            strategy = run_strategy_memory(
+                input_distilled=Path("output/distilled_pattern_memory_v1.json"),
+                out=strategy_memory,
+            )
+            strategy_memory_updates.append(str(strategy_memory))
+            steps.append({
+                "cmd": "internal:strategy_memory_v2",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(strategy_memory),
+                    "stats": strategy.get("stats"),
+                    "guardrails": strategy.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:strategy_memory_v2",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        hypothesis_priorities = out_dir / "hypothesis_priorities_v1.json"
+        try:
+            hyp = run_hypothesis_prioritizer(
+                semantic_story_path=out_dir / "semantic_story_v1.json",
+                strategy_memory_path=Path("output/strategy_memory_v2.json"),
+                out=hypothesis_priorities,
+            )
+            hypothesis_priority_updates.append(str(hypothesis_priorities))
+            steps.append({
+                "cmd": "internal:hypothesis_prioritizer_v1",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(hypothesis_priorities),
+                    "stats": hyp.get("stats"),
+                    "top_hypothesis": hyp.get("ranked_hypotheses", [{}])[0].get("hypothesis_name"),
+                    "guardrails": hyp.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:hypothesis_prioritizer_v1",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        universal_plan = out_dir / "universal_investigation_plan_v2.json"
+        try:
+            plan = run_universal_investigation_planner(
+                hypothesis_priorities_path=out_dir / "hypothesis_priorities_v1.json",
+                out=universal_plan,
+                max_steps=8,
+            )
+            universal_plan_updates.append(str(universal_plan))
+            steps.append({
+                "cmd": "internal:universal_investigation_planner_v2",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(universal_plan),
+                    "stats": plan.get("stats"),
+                    "top_step": plan.get("ordered_plan", [{}])[0].get("experiment_id"),
+                    "guardrails": plan.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:universal_investigation_planner_v2",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
+        reasoning_decision = out_dir / "reasoning_executor_decision_v1.json"
+        try:
+            decision = run_reasoning_executor(
+                apk_output_dir=out_dir,
+                out=reasoning_decision,
+            )
+            reasoning_executor_updates.append(str(reasoning_decision))
+            steps.append({
+                "cmd": "internal:reasoning_executor_v1",
+                "ok": True,
+                "returncode": 0,
+                "stdout": json.dumps({
+                    "out": str(reasoning_decision),
+                    "current_best_action": decision.get("current_best_action"),
+                    "guardrails": decision.get("guardrails"),
+                }, indent=2, ensure_ascii=False),
+                "stderr": ""
+            })
+        except Exception as e:
+            steps.append({
+                "cmd": "internal:reasoning_executor_v1",
+                "ok": False,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": str(e)
+            })
+
         if episode.exists():
             episode_updates.append(str(episode))
 
@@ -296,6 +501,13 @@ def main():
         "steps": steps,
         "closure_reports": closure_reports,
         "episode_updates": episode_updates,
+        "knowledge_memory_updates": knowledge_memory_updates,
+        "semantic_story_updates": semantic_story_updates,
+        "distilled_pattern_updates": distilled_pattern_updates,
+        "strategy_memory_updates": strategy_memory_updates,
+        "hypothesis_priority_updates": hypothesis_priority_updates,
+        "universal_plan_updates": universal_plan_updates,
+        "reasoning_executor_updates": reasoning_executor_updates,
     }
 
     save(args.out, final)

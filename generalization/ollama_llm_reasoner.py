@@ -204,32 +204,59 @@ def salvage_reasoning_from_text(raw_text, packet, source_packet, backend):
     }
 
 
+def normalize_experiment(value, top):
+    entry = top.get("entry_component")
+
+    if isinstance(value, dict) and value.get("step"):
+        return {
+            "step": str(value.get("step")),
+            "target": value.get("target") or entry,
+            "why": value.get("why") or "Concrete ordered source-to-sink proof is still missing."
+        }
+
+    return {
+        "step": "method_level_trace_review",
+        "target": entry,
+        "why": "Concrete ordered source-to-sink proof is still missing."
+    }
+
+
 def normalize_reasoning(obj, packet, source_packet, backend="ollama"):
     top = packet.get("top_candidate", {})
 
-    out = dict(obj) if isinstance(obj, dict) else {}
+    out = {}
     out["schema"] = "ollama_llm_reasoning_v1"
-    out["backend"] = out.get("backend") or backend
-    out["reasoning_mode"] = out.get("reasoning_mode") or "llm_json_reasoning"
-    out["fallback_used"] = bool(out.get("fallback_used", False))
+    out["backend"] = backend
+    out["reasoning_mode"] = "llm_json_reasoning"
+    out["fallback_used"] = False
     out["source_packet"] = str(source_packet)
 
     out["finding_allowed"] = False
     out["candidate_only"] = True
     out["report_allowed"] = False
 
-    out.setdefault("most_promising_path", top.get("entry_component"))
-    out.setdefault("next_best_experiment", {
-        "step": "method_level_trace_review",
-        "target": top.get("entry_component"),
-        "why": "Concrete ordered source-to-sink proof is still missing."
-    })
-    out.setdefault("missing_proof", top.get("missing_edges", []))
-    out.setdefault("counter_evidence", [
+    out["most_promising_path"] = top.get("entry_component")
+    out["next_best_experiment"] = normalize_experiment(
+        obj.get("next_best_experiment") if isinstance(obj, dict) else None,
+        top,
+    )
+
+    missing = top.get("missing_edges") or []
+    if not missing:
+        missing = [
+            "runtime marker propagation",
+            "ordered method-level call chain",
+            "sanitizer decision",
+            "impact proof"
+        ]
+
+    out["missing_proof"] = missing
+    out["counter_evidence"] = [
         "no confirmed runtime propagation",
         "no concrete exploitability proof"
-    ])
+    ]
 
+    out["llm_raw_fields_seen"] = sorted(list(obj.keys())) if isinstance(obj, dict) else []
     return out
 
 

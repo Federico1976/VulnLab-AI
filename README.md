@@ -1,75 +1,54 @@
-# VulnLab-AI
+# VulnLab-AI 2.0
 
-VulnLab-AI is an AI-native Android APK Hunting Agent for defensive security research and responsible disclosure.
+**VulnLab-AI 2.0** is a local, defensive, responsible-disclosure Android APK research agent.
 
-It is not a scanner.
+It is designed for open-source APKs, authorized bug bounty targets, and responsible security research.
 
-The goal of VulnLab-AI is to understand the runtime architecture of Android APKs, build semantic evidence, reason over reachability, generate dynamic validation plans, and support responsible disclosure workflows.
+It is not a scanner. It is a cognitive APK research agent that learns abstract investigation strategies from evidence, episodes, proof gaps, counter-evidence, and validation outcomes.
 
-## Core Principles
+## Cognitive Pipeline
 
-- Candidate evidence only
-- No vulnerability claim without proven reachability and dynamic validation
-- Context Engineering over detector accumulation
-- Runtime Modeling over signature matching
-- Universal architecture, not target-specific logic
-- Every APK analyzed should improve the engine, not add hardcoded rules
+```text
+Evidence Story
+↓
+Semantic Story Normalizer
+↓
+Continuous Knowledge Trainer
+↓
+Pattern Distillation Engine
+↓
+Strategy Memory v2
+↓
+Hypothesis Prioritizer
+↓
+Hypothesis Object
+↓
+Universal Investigation Planner v2
+↓
+Reasoning Executor v1
+↓
+Phase C Readiness Gate
+Core Guardrails
+candidate_only=true
+finding_allowed=false
+report_allowed=false
+target_specific_detectors_allowed=false
+learns_findings=false
+learns_cves=false
+LLM/Ollama Role
 
-## Version 1.0
+LLM/Ollama is integrated as a reasoning and triage layer over structured evidence.
 
-VulnLab-AI v1.0 freezes the Universal Runtime Modeling Foundation.
+It does not create findings.
+It does not override guardrails.
+It helps reason over Evidence Story, Semantic Story, Strategy Memory, Hypothesis Priorities, Investigation Plans, and Reasoning Executor decisions.
 
-Validated runtime families:
+Phase C Final Readiness
 
-- Android Native
-- Kotlin / Compose
-- React Native
-- Flutter
-- Hybrid Web / Cordova / Capacitor
-- Unity
+VulnLab-AI 2.0 completed Phase C cognitive readiness:
 
-Pending architectural validation:
+global_score=1.0
+ready_apk_count=5/5
+all_ready_for_heterogeneous_apk_campaign=true
 
-- Xamarin / .NET MAUI
-- NativeScript
-
-## High-Level Pipeline
-
-APK  
-→ Characterization  
-→ Runtime Family Engine  
-→ Runtime Role Ranking  
-→ Runtime Artifact Layer  
-→ Runtime Artifact Confidence  
-→ Capability Provider Engine  
-→ Semantic Objects  
-→ Evidence Graph  
-→ Runtime Ontology  
-→ Reachability Candidate  
-→ Dynamic Validation Plan  
-→ Responsible Disclosure Candidate
-
-## What VulnLab-AI Produces
-
-VulnLab-AI does not simply emit findings.
-
-It produces:
-
-- runtime characterization
-- semantic objects
-- evidence graphs
-- reachability candidates
-- confidence reasoning
-- dynamic validation plans
-- responsible disclosure candidates
-
-## Responsible Use
-
-This project is intended only for:
-
-- open-source security research
-- authorized bug bounty programs
-- internal defensive assessments
-- responsible disclosure workflows
-
-Do not use this project against systems, applications, users, or organizations without explicit authorization.
+See: PHASE_C_FINAL_READINESS.md
