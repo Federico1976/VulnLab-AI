@@ -6,6 +6,10 @@ It is designed for open-source APKs, authorized bug bounty targets, and responsi
 
 It is not a scanner. It is a cognitive APK research agent that learns abstract investigation strategies from evidence, episodes, proof gaps, counter-evidence, and validation outcomes.
 
+
+<img width="1050" height="195" alt="image" src="https://github.com/user-attachments/assets/d3582ada-27c4-4da6-9132-e800210a97f9" />
+
+
 ## Cognitive Pipeline
 
 ```text
