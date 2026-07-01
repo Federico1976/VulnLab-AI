@@ -1,171 +1,170 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import json, subprocess, time
+
+import argparse
+import json
+import subprocess
 from pathlib import Path
 
+
 def load(p):
-    p=Path(p)
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() and p.is_file() else {}
-
-def save(p,d):
-    p=Path(p); p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-
-def main():
-    import argparse
-    ap=argparse.ArgumentParser(description="Ollama LLM Reasoner v1")
-    ap.add_argument("--packet", required=True)
-    ap.add_argument("--model", default="llama3.1")
-    ap.add_argument("--out", required=True)
-    args=ap.parse_args()
-
-    packet=load(args.packet)
-
-    prompt = f"""
-Return ONLY valid JSON. No markdown. No explanation.
-
-You are an APK security reasoning reviewer.
-
-STRICT RULES:
-- Do not claim a vulnerability.
-- Do not write a bug bounty report.
-- finding_allowed must be false.
-- Use only the evidence in the packet.
-
-Return exactly this JSON object shape:
-{{
-  "triage_state": "candidate_needs_trace",
-  "most_promising_path": "string",
-  "counter_evidence_to_resolve": ["string"],
-  "missing_proof": ["string"],
-  "next_best_experiment": {{
-    "goal": "string",
-    "safe_command_or_static_task": "string",
-    "expected_information_gain": "high",
-    "why_this_before_other_tests": "string"
-  }},
-  "finding_allowed": false
-}}
-
-PACKET:
-{json.dumps(packet, ensure_ascii=False)}
-"""
-
-    r=subprocess.run(
-        ["ollama", "run", args.model],
-        input=prompt,
-        text=True,
-        capture_output=True,
-        timeout=180
-    )
-
-    raw=r.stdout.strip()
-    parsed=None
-    try:
-        start=raw.find("{")
-        end=raw.rfind("}")+1
-        parsed=json.loads(raw[start:end])
-    except Exception:
-        fallback_cmd = [
-            "python3", "-m", "generalization.llm_reasoning_output_v1",
-            "--packet", args.packet,
-            "--out", str(Path(args.out).with_suffix(".fallback.json"))
-        ]
-        subprocess.run(fallback_cmd, text=True, capture_output=True, timeout=60)
-        fallback = load(Path(args.out).with_suffix(".fallback.json"))
-        parsed = fallback if fallback else {
-            "triage_state":"llm_output_parse_failed",
-            "most_promising_path":packet.get("top_candidate",{}).get("entry_component"),
-            "counter_evidence_to_resolve":[],
-            "missing_proof":packet.get("top_candidate",{}).get("missing_edges",[]),
-            "next_best_experiment":{
-                "goal":"Retry LLM reasoning with stricter JSON output or use deterministic reviewer.",
-                "safe_command_or_static_task":"Inspect causal graph packet manually.",
-                "expected_information_gain":"medium",
-                "why_this_before_other_tests":"LLM response was not parseable JSON."
-            },
-            "finding_allowed":False
-        }
-
-    parsed["finding_allowed"]=False
-    parsed["candidate_only"]=True
-
-    out={
-        "schema_version":"ollama_llm_reasoner.v1",
-        "created_at":int(time.time()),
-        "model":args.model,
-        "source_packet":args.packet,
-        "ollama_returncode":r.returncode,
-        "raw_output":raw,
-        "reasoning_output":parsed,
-        "guardrail_result":{
-            "finding_allowed_forced_false":True,
-            "candidate_only":True,
-            "no_report_generation":True
-        }
-    }
-
-    save(args.out,out)
-    print(json.dumps(parsed, indent=2, ensure_ascii=False))
-
-if __name__=="__main__":
-    main()
+    p = Path(p)
+    return json.loads(p.read_text()) if p.exists() else {}
 
 
+def save(p, d):
+    p = Path(p)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(d, indent=2, ensure_ascii=False))
 
 
-def run_ollama_llm_reasoning(packet_path: str, output_path: str, model: str = "llama3.2:3b"):
-    """
-    Stable API used by complete APK research agent.
-    Dispatches to the real implementation available in this module.
-    """
-    import json
-    from pathlib import Path
-
-    candidates = [
-        "main_reason",
-        "run_reasoning",
-        "reason",
-        "run",
-        "main",
-    ]
-
-    for name in candidates:
-        fn = globals().get(name)
-        if callable(fn):
-            try:
-                return fn(packet_path=packet_path, output_path=output_path, model=model)
-            except TypeError:
-                try:
-                    return fn(packet_path, output_path, model)
-                except TypeError:
-                    try:
-                        return fn(packet_path, output_path)
-                    except TypeError:
-                        pass
-
-    # deterministic safe fallback if implementation function name changed
-    out = {
+def deterministic_fallback(packet, source_packet, reason="ollama_unavailable_or_invalid_json"):
+    top = packet.get("top_candidate", {})
+    return {
         "schema": "ollama_llm_reasoning_v1",
-        "backend": "deterministic_wrapper_fallback",
+        "backend": "deterministic_fallback",
         "reasoning_mode": "safe_fallback",
         "fallback_used": True,
+        "fallback_reason": reason,
+        "source_packet": str(source_packet),
+        "most_promising_path": top.get("entry_component"),
         "finding_allowed": False,
         "candidate_only": True,
         "report_allowed": False,
-        "next_best_experiment": "method_level_trace_review",
-        "missing_proof": [
-            "runtime_marker_propagation",
-            "ordered_source_to_sink_chain",
-            "sanitizer_decision",
-            "impact_proof"
-        ],
+        "next_best_experiment": {
+            "step": "method_level_trace_review",
+            "target": top.get("entry_component"),
+            "why": "Concrete ordered source-to-sink proof is still missing."
+        },
+        "missing_proof": top.get("missing_edges", [
+            "runtime marker propagation",
+            "ordered method-level call chain",
+            "sanitizer decision",
+            "impact proof"
+        ]),
         "counter_evidence": [
             "no confirmed runtime propagation",
             "no concrete exploitability proof"
         ]
     }
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(json.dumps(out, indent=2, ensure_ascii=False))
+
+def build_prompt(packet):
+    return f"""
+You are a defensive Android APK security research reasoning layer.
+
+Rules:
+- Use only the evidence in the packet.
+- Do not invent facts.
+- Do not claim a vulnerability.
+- Keep finding_allowed=false unless concrete proof exists.
+- Keep candidate_only=true unless concrete proof exists.
+- Select only the next best experiment.
+
+Return strict JSON only with:
+schema, backend, reasoning_mode, fallback_used, finding_allowed, candidate_only,
+report_allowed, most_promising_path, next_best_experiment, missing_proof, counter_evidence.
+
+Packet:
+{json.dumps(packet, ensure_ascii=False)}
+""".strip()
+
+
+def extract_json(text):
+    text = text.strip()
+    if not text:
+        raise ValueError("empty ollama response")
+
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("no JSON object found in Ollama response")
+
+    return json.loads(text[start:end + 1])
+
+
+def normalize_reasoning(obj, packet, source_packet, backend="ollama"):
+    top = packet.get("top_candidate", {})
+
+    out = dict(obj) if isinstance(obj, dict) else {}
+    out["schema"] = "ollama_llm_reasoning_v1"
+    out["backend"] = out.get("backend") or backend
+    out["reasoning_mode"] = out.get("reasoning_mode") or "llm_json_reasoning"
+    out["fallback_used"] = bool(out.get("fallback_used", False))
+    out["source_packet"] = str(source_packet)
+
+    out["finding_allowed"] = False
+    out["candidate_only"] = True
+    out["report_allowed"] = False
+
+    out.setdefault("most_promising_path", top.get("entry_component"))
+    out.setdefault("next_best_experiment", {
+        "step": "method_level_trace_review",
+        "target": top.get("entry_component"),
+        "why": "Concrete ordered source-to-sink proof is still missing."
+    })
+    out.setdefault("missing_proof", top.get("missing_edges", []))
+    out.setdefault("counter_evidence", [
+        "no confirmed runtime propagation",
+        "no concrete exploitability proof"
+    ])
+
     return out
+
+
+def reason_from_packet(packet_path, output_path=None, model="llama3.2:3b", timeout=90):
+    packet = load(packet_path)
+    prompt = build_prompt(packet)
+
+    try:
+        r = subprocess.run(
+            ["ollama", "run", model],
+            input=prompt,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+
+        if r.returncode != 0:
+            out = deterministic_fallback(packet, packet_path, reason=f"ollama_returncode_{r.returncode}")
+        else:
+            parsed = extract_json(r.stdout)
+            out = normalize_reasoning(parsed, packet, packet_path, backend=f"ollama:{model}")
+
+    except Exception as e:
+        out = deterministic_fallback(packet, packet_path, reason=str(e))
+
+    if output_path:
+        save(output_path, out)
+
+    return out
+
+
+def run_ollama_llm_reasoning(packet_path: str, output_path: str, model: str = "llama3.2:3b"):
+    return reason_from_packet(packet_path=packet_path, output_path=output_path, model=model)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Ollama LLM Reasoner v1")
+    ap.add_argument("--packet", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--model", default="llama3.2:3b")
+    ap.add_argument("--timeout", type=int, default=90)
+    args = ap.parse_args()
+
+    out = reason_from_packet(
+        packet_path=args.packet,
+        output_path=args.out,
+        model=args.model,
+        timeout=args.timeout,
+    )
+    print(json.dumps(out, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
